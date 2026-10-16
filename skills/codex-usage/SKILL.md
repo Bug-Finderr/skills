@@ -1,13 +1,13 @@
 ---
 name: codex-usage
-description: Use when shelling out work to the OpenAI Codex CLI (codex exec) - reviews, second opinions, browser or computer use, PDFs, security scans - or when a codex run hangs, hits sandbox errors, or burns tokens on plugin skills.
+description: Use when shelling out work to the OpenAI Codex CLI or gpt models via codex exec - reviews, second opinions, browser or computer use, PDFs, security scans - or when a codex run hangs, hits sandbox errors, or burns tokens on plugin skills.
 ---
 
 # Codex CLI usage
 
 Traps found on codex-cli 0.144 to 0.162. Re-check flags with `codex exec --help` when the CLI is newer.
 
-Plain `codex exec` loads `~/.codex/config.toml` (model, reasoning, approval, sandbox, plugins), headless included. Don't add flags that override it (`--ignore-user-config`, `-s`, `-p`, skill disables) unless the user asks to trim a run.
+Plain `codex exec` loads `~/.codex/config.toml` (model, reasoning, approval, sandbox, plugins), headless included. Don't add flags that override it (`--ignore-user-config`, `--ignore-rules`, `-s`, `-p`, skill disables) unless the user asks to trim a run.
 
 ## Command template
 
@@ -29,7 +29,7 @@ codex exec --skip-git-repo-check -C "/path/to/workdir" \
 
 Installed plugins load headless too, with skills namespaced `plugin:skill`. Trigger one by naming it in the prompt ("Use the $pdf skill to ...") or let implicit matching pick it. `codex plugin list` shows install state.
 
-- Computer use works headless only while the ChatGPT desktop app is running; it serves the native pipe the plugin talks to. On "Computer Use native pipe is unavailable", start the app. On Windows check with `[System.IO.Directory]::GetFiles('\\.\pipe\') -match 'codex-computer-use'`.
+- Computer use works headless only while the ChatGPT desktop app is running; it serves the native pipe the plugin talks to. On "Computer Use native pipe is unavailable", start the ChatGPT app itself; `codex app` wrongly reports Codex Desktop missing and opens an installer. On Windows check with `[System.IO.Directory]::GetFiles('\\.\pipe\') -match 'codex-computer-use'`.
 - The in-app browser plugin fails headless ("Browser is not available"). Use a Chrome-control plugin or a playwright MCP server from the codex config instead.
 
 ## Trimming a run (only when asked)

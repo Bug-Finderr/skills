@@ -2,6 +2,7 @@
 // Usage: node sheet.mjs <video.webm> [stepSeconds=1.5] [from=0] [to=9999]  ->  <video.webm>.sheet-<from>.png
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { launch } from "./vlib.mjs";
 
@@ -9,13 +10,16 @@ const [file, step = "1.5", from = "0", to = "9999"] = process.argv.slice(2);
 const abs = path.resolve(file);
 const browser = await launch();
 const page = await browser.newPage({ viewport: { width: 1708, height: 800 } });
-await page.goto("file:///" + path.dirname(abs).split(path.sep).join("/") + "/");
+await page.goto(pathToFileURL(path.dirname(abs) + path.sep).href);
 const { height, duration } = await page.evaluate(
-  async ({ name, step, from, to }) => {
+  async ({ src, step, from, to }) => {
     const v = document.createElement("video");
-    v.src = name;
+    v.src = src;
     v.muted = true;
-    await new Promise((r) => (v.onloadeddata = r));
+    await new Promise((resolve, reject) => {
+      v.onloadeddata = resolve;
+      v.onerror = () => reject(new Error(`cannot load video: ${v.error?.message}`));
+    });
     // Playwright's webm reports no duration until played through; seeking far reveals it.
     v.currentTime = 1e6;
     await new Promise((r) => (v.onseeked = r));
@@ -43,7 +47,7 @@ const { height, duration } = await page.evaluate(
     document.body.style.margin = "0";
     return { height: c.height, duration };
   },
-  { name: path.basename(abs), step: Number(step), from: Number(from), to: Number(to) },
+  { src: pathToFileURL(abs).href, step: Number(step), from: Number(from), to: Number(to) },
 );
 await page.setViewportSize({ width: 1680, height: Math.max(200, height) });
 await page.screenshot({ path: `${abs}.sheet-${from}.png`, fullPage: true });

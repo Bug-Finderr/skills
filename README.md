@@ -23,34 +23,30 @@ Skills then show up as `/bf:raise-pr` and `/bf:codex-usage`, and Claude also pic
 **Get updates automatically.** Claude Code turns auto-update off for marketplaces outside Anthropic's own, so switch it on once:
 
 - In a session, run `/plugin`, open **Marketplaces**, select `bug-finderr`, then **Enable auto-update**.
-- Or add this to `~/.claude/settings.json`:
+- Or, in `~/.claude/settings.json`, add `"autoUpdate": true` to the `bug-finderr` entry that `marketplace add` wrote under `extraKnownMarketplaces`:
 
   ```json
-  {
-    "extraKnownMarketplaces": {
-      "bug-finderr": {
-        "source": { "source": "github", "repo": "Bug-Finderr/skills" },
-        "autoUpdate": true
-      }
-    }
+  "bug-finderr": {
+    "source": { "source": "github", "repo": "Bug-Finderr/skills" },
+    "autoUpdate": true
   }
   ```
 
-After that, Claude Code checks in the background shortly after your session starts. When something changed you'll see `Plugin updated: bf · Run /reload-plugins to apply`. Every commit to `main` counts as a new version.
+After that, Claude Code checks in the background within about ten minutes of your first message in a session. When something changed you'll see `Plugin updated: bf · Run /reload-plugins to apply`. Every commit to `main` counts as a new version.
 
 To update by hand instead: `claude plugin update bf@bug-finderr`.
 
 ### Other agents (Cursor, Codex, Windsurf, and more)
 
 ```
-npx skills@latest add Bug-Finderr/skills
+npx skills@latest add Bug-Finderr/skills -g
 ```
 
-This route has no update notices. Run `npx skills@latest update` now and then.
+This route has no update notices. Run `npx skills@latest update -g` now and then.
 
 ## Requirements
 
-- `raise-pr` videos: Node, Google Chrome, and `playwright-core` in the project or in bun's global cache (`bun add -g playwright-core`).
+- `raise-pr` videos: Node, Google Chrome, `playwright-core` in the project or installed globally (`bun add -g playwright-core`), and Playwright's ffmpeg (`npx playwright-core install ffmpeg`).
 - `raise-pr` second review and `codex-usage`: the [Codex CLI](https://github.com/openai/codex).
 
 ## License

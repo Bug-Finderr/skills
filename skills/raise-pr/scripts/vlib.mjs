@@ -4,22 +4,25 @@ import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 
-// playwright-core from the current project, else the newest copy in bun's global cache.
+// playwright-core from the current project, then bun's global install, then the newest copy in bun's cache.
 function loadChromium() {
   const require = createRequire(path.join(process.cwd(), "index.js"));
-  try {
-    return require("playwright-core").chromium;
-  } catch {}
-  const cache = path.join(os.homedir(), ".bun/install/cache");
-  const core = fs.existsSync(cache)
+  const bun = path.join(os.homedir(), ".bun/install");
+  const cache = process.env.BUN_INSTALL_CACHE_DIR ?? path.join(bun, "cache");
+  const cached = fs.existsSync(cache)
     ? fs
         .readdirSync(cache)
         .filter((dir) => dir.startsWith("playwright-core@"))
-        .sort()
-        .at(-1)
-    : undefined;
-  if (!core) throw new Error("playwright-core not found: install it in the project or run `bun add -g playwright-core`");
-  return require(path.join(cache, core)).chromium;
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+        .map((dir) => path.join(cache, dir))
+        .reverse()
+    : [];
+  for (const id of ["playwright-core", path.join(bun, "global/node_modules/playwright-core"), ...cached]) {
+    try {
+      return require(id).chromium;
+    } catch {}
+  }
+  throw new Error("playwright-core not found: install it in the project or run `bun add -g playwright-core`");
 }
 
 const chromium = loadChromium();
@@ -89,8 +92,8 @@ export async function go(page, url, caption) {
 }
 
 /**
- * Email and password sign-in with a seeded test account on a local or staging build. The defaults fit a typical
- * /auth page; pass selectors for other projects. Read the password from the project's seed file, never hardcode it.
+ * Email and password sign-in with a seeded test account on a local or staging build. The defaults are examples from
+ * one project; pass your own path and selectors. Read the password from the project's seed file, never hardcode it.
  */
 export async function signIn(
   page,
