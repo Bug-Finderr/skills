@@ -1,31 +1,17 @@
 // Shared helpers for captioned PR flow videos on local dev. Run flow scripts with Node, not Bun.
 import fs from "node:fs";
-import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
-// playwright-core from the current project, then bun's global install, then the newest copy in bun's cache.
-function loadChromium() {
-  const require = createRequire(path.join(process.cwd(), "index.js"));
-  const bun = path.join(os.homedir(), ".bun/install");
-  const cache = process.env.BUN_INSTALL_CACHE_DIR ?? path.join(bun, "cache");
-  const cached = fs.existsSync(cache)
-    ? fs
-        .readdirSync(cache)
-        .filter((dir) => dir.startsWith("playwright-core@"))
-        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
-        .map((dir) => path.join(cache, dir))
-        .reverse()
-    : [];
-  for (const id of ["playwright-core", path.join(bun, "global/node_modules/playwright-core"), ...cached]) {
-    try {
-      return require(id).chromium;
-    } catch {}
-  }
-  throw new Error("playwright-core not found: install it in the project or run `bun add -g playwright-core`");
-}
-
-const chromium = loadChromium();
+const CACHE = path.join(os.homedir(), ".bun/install/cache");
+// Newest cached playwright-core; bun keeps several versions side by side.
+const core = fs
+  .readdirSync(CACHE)
+  .filter((dir) => dir.startsWith("playwright-core@"))
+  .sort()
+  .at(-1);
+const { chromium } = await import(pathToFileURL(path.join(CACHE, core, "index.mjs")).href);
 
 export const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 export const DESKTOP = { width: 1280, height: 800 };
@@ -92,8 +78,8 @@ export async function go(page, url, caption) {
 }
 
 /**
- * Email and password sign-in with a seeded test account on a local or staging build. The defaults are examples from
- * one project; pass your own path and selectors. Read the password from the project's seed file, never hardcode it.
+ * Email and password sign-in with a seeded test account on a local or staging build. Pass selectors for
+ * projects whose /auth page differs from the defaults. Read the password from the project's seed file, never hardcode it.
  */
 export async function signIn(
   page,

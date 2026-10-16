@@ -16,10 +16,7 @@ const { height, duration } = await page.evaluate(
     const v = document.createElement("video");
     v.src = src;
     v.muted = true;
-    await new Promise((resolve, reject) => {
-      v.onloadeddata = resolve;
-      v.onerror = () => reject(new Error(`cannot load video: ${v.error?.message}`));
-    });
+    await new Promise((r) => (v.onloadeddata = r));
     // Playwright's webm reports no duration until played through; seeking far reveals it.
     v.currentTime = 1e6;
     await new Promise((r) => (v.onseeked = r));

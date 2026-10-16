@@ -18,7 +18,7 @@ Follow the project's rule files and recent merged PRs where they differ from thi
 - Agent-written tests stay local; their results go in the description.
 
 ## Review
-- Own checks green, then a clean Opus agent and, when the Codex CLI is installed, gpt-6-astra (codex) in parallel on the full diff and the PR text.
+- Own checks green, then a clean Opus agent and gpt-6-astra (codex) in parallel on the full diff and the PR text.
 - Lenses: correctness and prod safety (auth, data loss, release order, every caller of a changed contract, the same flaw elsewhere in the codebase); useless logic (impossible-state guards, unread data, helpers the repo already has); project and user rules.
 - Refute each finding against the code before applying; keep anything uncertain on security. Re-review the fix commits.
 - Keep the diff small: repeated lines become one helper, no copies of what git holds, no nice-to-haves.
@@ -27,7 +27,7 @@ Follow the project's rule files and recent merged PRs where they differ from thi
 For a smart reader new to the codebase. Title says the effect. Open with what breaks without it. Then only what applies: change, how it was tested (before and after table, data source), prod safety, to make it live (steps and who; merging often changes nothing), known limits, videos. Facts checked this session only, else "configured but untested". No em dashes, no filler, no Co-Authored-By or "Generated with". Update the body whenever a fix changes a fact.
 
 ## Videos (user-facing flows only)
-Scripts live in this skill's folder, `${CLAUDE_SKILL_DIR}/scripts` (Claude Code fills in the path; other agents use the folder this file is in). They need Node, not Bun, plus Chrome, playwright-core from the project or bun's global install, and Playwright's ffmpeg (`npx playwright-core install ffmpeg`). Copy `scripts/example-flow.mjs` next to the outputs and set its `VLIB` to the absolute path of `scripts/vlib.mjs` each time you run it. Local dev, seeded accounts, passwords from the seed file, setup outside the recording, one caption per step, 20 to 60 s, under 10 MB, check with `node "${CLAUDE_SKILL_DIR}/scripts/sheet.mjs" <video.webm>`, undo test data, re-record if the UI changes. Attach through the PR comment box in Chrome: on Windows upload with the long path (`~1` names are refused), read the user-attachments links from the textarea, clear it, never submit.
+`scripts/vlib.mjs` with Node, not Bun; start from `scripts/example-flow.mjs`. Local dev, seeded accounts, passwords from the seed file, setup outside the recording, one caption per step, 20 to 60 s, under 10 MB, check with `scripts/sheet.mjs`, undo test data, re-record if the UI changes. Attach through the PR comment box in Chrome: upload with the long Windows path (`~1` names are refused), read the user-attachments links from the textarea, clear it, never submit.
 
 ## Comments until clean
 Bots re-review every push, so loop: list unresolved threads, sort each against the code, batch fixes into one push, reply and resolve every thread, wait for the re-review.

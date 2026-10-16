@@ -44,11 +44,6 @@ npx skills@latest add Bug-Finderr/skills -g
 
 This route has no update notices. Run `npx skills@latest update -g` now and then.
 
-## Requirements
-
-- `raise-pr` videos: Node, Google Chrome, `playwright-core` in the project or installed globally (`bun add -g playwright-core`), and Playwright's ffmpeg (`npx playwright-core install ffmpeg`).
-- `raise-pr` second review and `codex-usage`: the [Codex CLI](https://github.com/openai/codex).
-
 ## License
 
 [MIT](LICENSE)
