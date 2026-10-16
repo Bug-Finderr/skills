@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "bf",
+  "description": "Opinionated skills for raising PRs end to end and for driving the Codex CLI from Claude.",
+  "author": {
+    "name": "Bug-Finderr",
+    "url": "https://github.com/Bug-Finderr"
+  },
+  "homepage": "https://github.com/Bug-Finderr/skills",
+  "repository": "https://github.com/Bug-Finderr/skills",
+  "license": "MIT",
+  "keywords": ["pull-requests", "code-review", "codex", "skills"]
+}

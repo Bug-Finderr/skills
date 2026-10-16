@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-marketplace.json",
+  "name": "bug-finderr",
+  "owner": {
+    "name": "Bug-Finderr",
+    "url": "https://github.com/Bug-Finderr"
+  },
+  "description": "Bug-Finderr's agent skills, as an installable Claude Code plugin.",
+  "plugins": [
+    {
+      "name": "bf",
+      "source": "./",
+      "description": "Opinionated skills for raising PRs end to end and for driving the Codex CLI from Claude.",
+      "category": "engineering",
+      "keywords": ["pull-requests", "code-review", "codex", "skills"]
+    }
+  ]
+}
