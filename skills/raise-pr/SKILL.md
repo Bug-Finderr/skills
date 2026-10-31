@@ -24,10 +24,10 @@ Follow the project's rule files and recent merged PRs where they differ from thi
 - Keep the diff small: repeated lines become one helper, no copies of what git holds, no nice-to-haves.
 
 ## Describe
-For a smart reader new to the codebase. Title says the effect. Open with what breaks without it. Then only what applies: change, how it was tested (before and after table, data source), prod safety, to make it live (steps and who; merging often changes nothing), known limits, videos. Facts checked this session only, else "configured but untested". No em dashes, no filler, no Co-Authored-By or "Generated with". Update the body whenever a fix changes a fact.
+For a smart reader new to the codebase. Title says the effect. Open with what breaks without it. Then only what applies: change, how it was tested (before and after table, data source), prod safety, to make it live (steps and who; merging often changes nothing), known limits, videos. Facts checked this session only, else "configured but untested". No em dashes, no filler, no Co-Authored-By or "Generated with". Update the body whenever a fix changes a fact. Self assign the PR.
 
 ## Videos (user-facing flows only)
-`scripts/vlib.mjs` with Node, not Bun; start from `scripts/example-flow.mjs`. Local dev, seeded accounts, passwords from the seed file, setup outside the recording, one caption per step, 20 to 60 s, under 10 MB, check with `scripts/sheet.mjs`, undo test data, re-record if the UI changes. Attach through the PR comment box in Chrome: upload with the long Windows path (`~1` names are refused), read the user-attachments links from the textarea, clear it, never submit.
+`scripts/vlib.mjs` with Node, not Bun; start from `scripts/example-flow.mjs`. Local dev, seeded accounts, passwords from the seed file, setup outside the recording, one caption per step, 20 to 60 s, under 10 MB, check with `scripts/sheet.mjs`, undo test data, re-record if the UI changes. Put `![](./flow.mp4)` where it belongs in the body file and run `gh pr edit <n> --body-file body.md --attach flow.mp4`. gh uploads the file and swaps in its GitHub link.
 
 ## Comments until clean
 Bots re-review every push, so loop: list unresolved threads, sort each against the code, batch fixes into one push, reply and resolve every thread, wait for the re-review.
