@@ -1,55 +1,59 @@
 ---
 name: codex-usage
-description: Use when shelling out work to the OpenAI Codex CLI or gpt models via codex exec - reviews, second opinions, browser or computer use, PDFs, security scans - or when a codex run hangs, hits sandbox errors, or burns tokens on plugin skills.
+description: Use when sending work to the OpenAI Codex CLI or gpt models through codex exec - second opinions, code reviews, reading screenshots or images, PDFs and office files, bulk file work - or when a codex run hangs, ignores a flag, fails on its reasoning setting, or burns tokens on plugin skills.
 ---
 
 # Codex CLI usage
 
-Traps found on codex-cli 0.144 to 0.162. Re-check flags with `codex exec --help` when the CLI is newer.
+Checked on codex-cli 0.166; re-check with `codex exec --help` on newer versions.
 
-Plain `codex exec` loads `~/.codex/config.toml` (model, reasoning, approval, sandbox, plugins), headless included. Don't add flags that override it (`--ignore-user-config`, `--ignore-rules`, `-s`, `-p`, skill disables) unless the user asks to trim a run.
+## When
 
-## Command template
+A different model family catches what a same-model reviewer misses. Use codex for:
 
-From bash (Git Bash on Windows, never `cmd /c "..."`, which splits quoted prompts into words):
+- An independent review of a diff, plan or judgement call. Give it the code, not your conclusion.
+- Reading images (`-i`).
+- PDFs and office files, when a document plugin is installed (`codex plugin list`).
+- Bulk file work outside your own context.
 
-```bash
-codex exec --skip-git-repo-check -C "/path/to/workdir" \
-  -i screenshot.png -o out.md "prompt" </dev/null 2>err.log
-```
+Runs take 15 seconds to several minutes; batch questions into one run.
 
-- `</dev/null` is mandatory: with an open non-TTY stdin codex prints "Reading additional input from stdin..." and waits forever.
-- `-i` is repeatable for images. On Windows use `C:/...` paths.
-- Long prompt: `codex exec - < prompt.txt` reads it from stdin.
-- Single-quote prompts that contain `$skill` so bash doesn't expand them.
-- Runs can exceed 10 minutes: run in the background and poll the `-o` file. The stderr tail has `tokens used`.
-- `--json` streams JSONL events; `codex exec resume <session-id>` continues a session.
+## How
 
-## Plugins under codex exec
-
-Installed plugins load headless too, with skills namespaced `plugin:skill`. Trigger one by naming it in the prompt ("Use the $pdf skill to ...") or let implicit matching pick it. `codex plugin list` shows install state.
-
-- Computer use works headless only while the ChatGPT desktop app is running; it serves the native pipe the plugin talks to. On "Computer Use native pipe is unavailable", start the ChatGPT app itself; `codex app` wrongly reports Codex Desktop missing and opens an installer. On Windows check with `[System.IO.Directory]::GetFiles('\\.\pipe\') -match 'codex-computer-use'`.
-- The in-app browser plugin fails headless ("Browser is not available"). Use a Chrome-control plugin or a playwright MCP server from the codex config instead.
-
-## Trimming a run (only when asked)
-
-- `-c 'plugins."x@y".enabled=false'` is silently ignored. Don't rely on it.
-- Plugin-free run: `--ignore-user-config -m <model>`. The whole config is dropped, including your sandbox choice, so use it only for no-tool runs (image or text reviews, pure reasoning).
-- Disable one skill for one run, e.g. `using-superpowers`, which codex reads at the start of every conversation. Point at every cached copy of its SKILL.md under `~/.codex/plugins/cache`:
+Plain `codex exec` loads `~/.codex/config.toml` (model, sandbox, plugins). Pass model and reasoning effort explicitly. Run from bash, not `cmd /c`:
 
 ```bash
-codex exec -c "skills.config=[{path='<cache>/<marketplace>/superpowers/<hash>/skills/using-superpowers/SKILL.md',enabled=false}]" ...
+codex exec --skip-git-repo-check -C "/path/to/workdir" -m <model> -c model_reasoning_effort=high \
+  -o out.md "prompt" -i screenshot.png </dev/null 2>err.log
 ```
 
-  Use TOML literal (single-quoted) paths. Cache paths change on plugin update, so re-check if the skill still loads.
-- Permanent: `[plugins."name@marketplace"] enabled = false` in config.toml, or toggle it in the TUI under `/plugins`.
+- `</dev/null` is required, or codex waits forever on stdin ("Reading additional input from stdin...").
+- `-i` takes several values: a prompt right after it is read as an image. Put the prompt first, or use `-i img.png -- "prompt"`.
+- `-o` gets the final message, written only when the run ends. Read the answer there.
+- Long prompt: `codex exec - < prompt.txt`.
+- JSON answer: `--output-schema schema.json`.
+- A typo in reasoning effort fails only after about a minute (server 400).
+- Code review, from inside the repo: `codex exec review --uncommitted -m <model> -c model_reasoning_effort=high -o review.md </dev/null` (or `--base <branch>`, `--commit <sha>`). These flags refuse a prompt, and review has no `-C`.
+- `codex exec resume <session-id>` continues a session.
+
+## Plugins
+
+Plugins load headless; name a skill in the prompt to use it ("Use the $pdf skill to ..."; single-quote it in bash).
+
+- `-c 'plugins."x@y".enabled=false'` does nothing.
+- To drop one skill for one run, pass the absolute path of its SKILL.md under `~/.codex/plugins/cache` as a single-quoted TOML string. A wrong path is ignored silently, so ask codex to list its skills to check:
+
+  ```bash
+  codex exec -c "skills.config=[{path='<absolute path>/SKILL.md',enabled=false}]" ...
+  ```
+
+- Permanent: `[plugins."name@marketplace"] enabled = false` in config.toml.
 
 ## Failure modes
 
-- Windows with `--sandbox read-only`: "windows sandbox: helper_unknown_error: apply deny-read ACLs" and the task reports blocked. Use the config's sandbox and put read-only discipline in the prompt.
-- "No such host is known" or reconnect spam to api.openai.com: a network flake. Retry once, then skip codex and say it was skipped.
+- `--ignore-user-config` skips config.toml. On Windows, shell commands then came back "blocked by policy" while the run still exited 0. Check the answer, not just the exit code.
+- "No such host is known" from api.openai.com: retry once, then skip codex and say so.
 
-## In Claude workflows and subagents
+## From Claude workflows and subagents
 
-The `model` option only takes Claude models. Spawn a thin Claude wrapper that writes a self-contained prompt, runs `codex exec`, and returns a report (use `schema` for structured output). Label it with a `gpt:` prefix, e.g. `{label: 'gpt:review-auth'}`, because the workflow UI shows the wrapper's Claude model and the label is the only sign the real worker is gpt.
+`model` takes only Claude models, so spawn a thin Claude wrapper that writes the prompt, runs codex in a background shell or with a multi-minute shell timeout (the 2-minute default kills it before `-o` is written), waits for the process to exit, and returns the `-o` file. err.log stays flat while codex works, so it is no sign of progress. Label the wrapper `gpt:...` so the workflow UI shows the real worker.

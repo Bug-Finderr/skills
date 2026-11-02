@@ -5,7 +5,7 @@ My agent skills, straight from `~/.claude/skills`. Opinionated: they encode how 
 | Skill | What it does |
 |---|---|
 | [`raise-pr`](skills/raise-pr/SKILL.md) | Takes a PR from proof to merge-ready: regression tests that compare old and new, parallel AI reviews, a plain-language description, optional captioned flow videos, and a loop over review comments until none are open. |
-| [`codex-usage`](skills/codex-usage/SKILL.md) | Drives the OpenAI Codex CLI (`codex exec`) from Claude for second opinions, reviews and computer use, and covers the traps: the stdin hang, flags that are silently ignored, sandbox errors on Windows. |
+| [`codex-usage`](skills/codex-usage/SKILL.md) | Drives the OpenAI Codex CLI (`codex exec`) from Claude for second opinions, code reviews, image reading and document work, and covers the traps: the stdin hang, image flags that swallow the prompt, flags that are silently ignored, and runs that look finished before they are. |
 
 ## Install
 
