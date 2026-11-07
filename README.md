@@ -46,8 +46,8 @@ This route has no update notices. Run `npx skills@latest update -g` now and then
 
 ## Requirements
 
-- `raise-pr`: the GitHub CLI (`gh`), and the [Codex CLI](https://github.com/openai/codex) for the second review.
-- `raise-pr` videos: Node, Google Chrome, `playwright-core` in bun's cache (`bun add -g playwright-core`), Playwright's ffmpeg (`npx playwright-core install ffmpeg`), and Claude in Chrome to attach videos to the PR.
+- `raise-pr`: the GitHub CLI (`gh`) with the [gh-pr-review](https://github.com/agynio/gh-pr-review) extension, and the [Codex CLI](https://github.com/openai/codex) for the second review.
+- `raise-pr` videos: Node, Google Chrome, `playwright-core` in bun's cache (`bun add -g playwright-core`) and Playwright's ffmpeg (`npx playwright-core install ffmpeg`).
 - `codex-usage`: the Codex CLI.
 
 ## License
