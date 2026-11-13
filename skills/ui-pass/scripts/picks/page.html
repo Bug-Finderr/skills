@@ -113,13 +113,17 @@ function pickRow(id, question, options) {
     const b = el("button", { class: "chip", type: "button", "aria-pressed": "false" }, opt);
     b.onclick = () => {
       clearTimeout(pending.get(id));
+      pending.delete(id);
       save(id, { choice: picks.get(id)?.choice === opt ? "" : opt, note: note.value });
     };
     row.append(b);
   }
   note.oninput = () => {
     clearTimeout(pending.get(id));
-    pending.set(id, setTimeout(() => save(id, { note: note.value }), 700));
+    pending.set(id, setTimeout(() => {
+      pending.delete(id);
+      save(id, { note: note.value });
+    }, 700));
   };
   row.append(note, el("span", { class: "saved", "aria-live": "polite" }));
   rows.set(id, row);
@@ -235,7 +239,8 @@ async function boot() {
   store.collection("picks").onSnapshot(
     (snap) => {
       for (const doc of snap.docs) {
-        if (writing.has(doc.id)) continue;
+        // A local choice or note not yet saved wins over an older saved copy.
+        if (writing.has(doc.id) || pending.has(doc.id)) continue;
         picks.set(doc.id, { choice: "", note: "", ...doc.data() });
         paint(doc.id);
       }

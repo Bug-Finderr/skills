@@ -43,7 +43,7 @@ Project rules and the user's own words win where they differ. Script usage, conf
 ## Taste
 - Read `taste.md` and the project's taste file before proposing, building or reviewing.
 - During a pass `taste.md` stays read-only; a pick goes into the project's taste file only when it holds for other screens, never a rule from one pick.
-- At the end of a pass, list the project lessons that would hold anywhere, ask which to promote, and add the approved ones to `taste.md` without repeating a line.
+- At the end of a pass, list the project lessons that would hold anywhere, ask which to promote, and add the approved ones to the user's own copy of `taste.md` without repeating a line.
 - One-screen decisions live in code and checks.
 
 ## Running long

@@ -2,7 +2,7 @@
 // <before> and <after> are two images, or two shot sets under the config's shots folder whose changed viewport pieces are judged.
 // Needs magick, curl, OPENROUTER_API_KEY and a signed-in codex CLI; nothing telling which side is new may sit in --out while judges run.
 import { execFileSync, spawn } from "node:child_process";
-import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, extname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -116,14 +116,19 @@ async function muse(files, answer) {
   return { text: response.choices?.[0]?.message?.content ?? JSON.stringify(response.error ?? response), cost: response.usage?.cost ?? 0 };
 }
 
-// gpt-6.1-sol through codex: stdin must be closed or codex waits on it, the prompt goes before -i (which takes several
-// values), -o is written only when the run ends, and an empty folder outside any repo keeps project files and skills out.
+// codex needs stdin closed, the prompt before -i (which takes several values), and writes -o only at the end. It runs in a
+// temp folder outside any repo on copies of the images, so project files and the shots' location never reach it.
 async function codex(files, answer) {
   const blank = mkdtempSync(join(tmpdir(), "judge-"));
+  const copies = files.map((f, i) => {
+    const to = join(blank, `${String(i + 1).padStart(2, "0")}${extname(f.file)}`);
+    copyFileSync(f.file, to);
+    return to;
+  });
   const log = openSync(`${answer}.err`, "w");
   const listed = `${prompt}\nThe attached images, in order: ${files.map((f) => f.label).join("; ")}.`;
   await run("codex", ["exec", "--skip-git-repo-check", "-C", blank, "-s", "read-only", "-m", "gpt-6.1-sol", "-c", "model_reasoning_effort=high",
-    "-o", answer, listed, ...files.flatMap((f) => ["-i", f.file])], ["ignore", log, log]);
+    "-o", answer, listed, ...copies.flatMap((c) => ["-i", c])], ["ignore", log, log]);
   closeSync(log);
   rmSync(blank, { recursive: true });
   const tokens = readFileSync(`${answer}.err`, "utf8").match(/tokens used\s+([\d,]+)/)?.[1].replaceAll(",", "");

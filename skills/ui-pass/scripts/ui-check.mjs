@@ -210,6 +210,8 @@ for (const screen of screens) {
         reducedMotion: has("reduce") ? "reduce" : "no-preference",
         storageState: screen.account ? await authState(screen.account, failShot) : undefined,
       });
+      // The watchdog may have fired during sign-in; a shot it gave up on must not keep running.
+      if (entry.failed) return context.close();
       await config.prepare?.(context, screen);
       page = await context.newPage();
       page.setDefaultTimeout(15_000);

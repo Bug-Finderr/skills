@@ -7,6 +7,7 @@ import { dirname, extname, join, resolve } from "node:path";
 const [input, outArg] = process.argv.slice(2);
 const spec = resolve(input);
 const out = resolve(outArg ?? dirname(spec));
+mkdirSync(out, { recursive: true });
 const picks = JSON.parse(readFileSync(spec, "utf8"));
 const files = {};
 const names = new Set();

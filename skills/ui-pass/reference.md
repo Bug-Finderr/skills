@@ -32,7 +32,7 @@ export default {
 - `scripts/pairs.mjs <before> <after> [id-prefix...]`: one before-over-after picture per screen for the tracker and the user, never for critics, since position gives the answer away. It skips pictures that exist, so clear its folder after a reshoot.
 - `scripts/judge/judge.mjs <before> <after> [id-prefix...] --out <dir> [--judges muse,codex] [--prompt file] [--noise 1500]`: two images or two shot sets.
   - Sets are cut into viewport pieces and only the 6 phone and 4 wider pieces that changed most are judged; the rest are listed as `dropped` in `tiles.json`. Content pushed down shifts every piece below it, so crop such screens to the changed element.
-  - A judge that never calls the control the same, or skips a pair, makes the run unaccepted: rerun it once, then drop it for that round and say so.
+  - A judge that never calls the control the same, or skips a pair or answers it with anything but one X, Y or same, makes the run unaccepted: rerun it once, then drop it for that round and say so.
   - `--judges muse` first, then `codex` only on what Muse accepted; Muse costs about $0.12 to $0.14 per judged piece with its control.
 - `scripts/picks/make.mjs <picks.json> [outDir]`: builds `index.html`, `img/`, `clips/` and `files.json`. Build inside the project or the session scratchpad, since publish sources must live there.
 - `scripts/motion/record.mjs <set> [moment-prefix...] [--moments ui-pass.moments.mjs] [--dir shots] [--widths 390,1440] [--data] [--skip-done] [--list]`: each moment gives a clip, a strip every 100 ms and a reduced-motion end still. Widths 390 and 1440 only.
@@ -83,7 +83,7 @@ export default {
 - Mail designs are judged as Gmail shows them: no web fonts, images blocked, and the Gmail app's dark mode leaves a mail's colours alone, so forced-dark browser shots show problems readers don't have.
 
 ## Evidence
-- Judges pass their own model family's work too often ([Pombal et al. 2026](https://arxiv.org/abs/2604.06996)); a second reviewer from another model finds more than a second pass by the same one ([2610.01471](https://arxiv.org/abs/2610.01471)).
+- Judges pass their own model family's work too often ([Pombal et al. 2026](https://arxiv.org/abs/2604.06996)); a strong reviewer from another model finds more than a second pass by the same one ([2610.01471](https://arxiv.org/abs/2610.01471)).
 - Designers agree on the better screen only 62% of the time, and a personal sample predicts a person better ([DesignPref](https://arxiv.org/html/2511.20513v1)): hence a taste file.
 - Naive self-refinement levels off, then degrades ([RubSE](https://arxiv.org/abs/2608.24138)).
 - Compliance falls as instructions pile up ([IFScale](https://arxiv.org/abs/2507.11538)): keep rule and taste files short and move checkable rules into scripts.
