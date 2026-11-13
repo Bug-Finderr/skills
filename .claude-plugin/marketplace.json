@@ -10,9 +10,9 @@
     {
       "name": "bf",
       "source": "./",
-      "description": "Opinionated skills for raising PRs end to end and for driving the Codex CLI from Claude.",
+      "description": "Opinionated skills for raising PRs end to end, driving the Codex CLI from Claude and running UI polish passes.",
       "category": "engineering",
-      "keywords": ["pull-requests", "code-review", "codex", "skills"]
+      "keywords": ["pull-requests", "code-review", "codex", "ui", "design-review", "skills"]
     }
   ]
 }
