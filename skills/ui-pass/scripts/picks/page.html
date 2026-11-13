@@ -232,8 +232,11 @@ async function boot() {
   // Controls wait for saved picks, or a pick made first would overwrite the saved one.
   const ready = () => document.querySelectorAll(".chip, .note").forEach((c) => (c.disabled = false));
   const timer = setTimeout(() => {
-    status.textContent = "Saved picks can't be reached yet; new picks may not save.";
-    ready();
+    if (store) status.textContent = "Saved picks can't be reached yet; answers open once they load.";
+    else {
+      status.textContent = "Saved picks can't be reached; new picks may not save.";
+      ready();
+    }
   }, 10000);
   store = await window.claude?.use?.("db");
   if (!store) {
