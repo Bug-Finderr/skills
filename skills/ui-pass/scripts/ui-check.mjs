@@ -1,17 +1,13 @@
-// Screenshots and UI gates for every screen in the project's screen list. Run from the project root with Node.
 // Usage: node ui-check.mjs [id-prefix...] [--config ui-pass.config.mjs] [--out after] [--widths 390,1440] [--all-widths]
 //        [--reduce] [--scale 2] [--base <url>] [--no-shots] [--env <name>] [--resume] [--exact] [--keep-png]
 // --base changes where shots load, not where config.signIn goes.
-// Screen fields: id, route, account, widths (both|phone-only|laptop-only), viewport {width,height} (replaces widths),
-// steps (body of async (page, width) => ...), motion, viewportOnly, permissions, env (runs only with --env), skip,
-// mutates (runs after the rest); config.prepare sees the whole screen, so projects can add their own fields.
-// Gates: page overflow, targets under 24px (44px on touch widths warns), inputs under 16px on touch widths,
-// axe serious/critical, console errors. Report: <shots>/<out>/report.json; shots: <id>@<width>.webp.
+// Console errors and touch targets under 44px are only listed in the report; they never fail a shot.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { HEIGHT, TOUCH_ARGS } from "./viewports.mjs";
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -34,7 +30,6 @@ const out = resolve(config.shots, flag("out", "after"));
 const widths = has("all-widths") ? [360, 390, 768, 1440] : flag("widths", "390,1440").split(",").map(Number);
 const scale = Number(flag("scale", "1"));
 const shots = !has("no-shots");
-const HEIGHT = { 360: 740, 390: 844, 768: 1024, 1440: 900 };
 
 const env = flag("env", undefined);
 const screens = JSON.parse(readFileSync(resolve(config.screens), "utf8"))
@@ -60,30 +55,30 @@ const authDir = resolve(config.shots, `.auth-${flag("out", "after")}`);
 mkdirSync(authDir, { recursive: true });
 
 const browser = await chromium.launch({ channel: "chrome" });
-// Full-page shots drop a context's touch emulation, so touch widths get a browser whose pointer is coarse for good.
 let touchBrowser;
 const browserFor = async (touch) =>
-  touch
-    ? (touchBrowser ??= await chromium.launch({
-        channel: "chrome",
-        args: ["--blink-settings=primaryPointerType=2,availablePointerTypes=2,primaryHoverType=1,availableHoverTypes=1"],
-      }))
-    : browser;
+  touch ? (touchBrowser ??= await chromium.launch({ channel: "chrome", args: TOUCH_ARGS })) : browser;
 const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
 
 /** A saved sign-in per account, renewed every 30 minutes: an older one can load with stale roles. */
-async function authState(account) {
+async function authState(account, failShot) {
   const file = join(authDir, `${account}.json`);
   if (existsSync(file) && Date.now() - statSync(file).mtimeMs < 30 * 60_000) return file;
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
-  await config.signIn(page, account);
-  await context.storageState({ path: file });
-  await context.close();
+  try {
+    await config.signIn(page, account);
+    await context.storageState({ path: file });
+  } catch (error) {
+    await page.screenshot({ path: failShot, timeout: 10_000 }).catch(() => undefined);
+    throw error;
+  } finally {
+    await context.close();
+  }
   return file;
 }
 
-/** Scrolls the whole page once so scroll-triggered reveals settle, then returns to the top. */
+// Scroll-triggered reveals settle only once the page has been scrolled through.
 async function settle(page, motion) {
   await page.evaluate(() => document.fonts.ready);
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
@@ -100,7 +95,6 @@ async function settle(page, motion) {
   await page.waitForTimeout(motion ? 1500 : 500);
 }
 
-/** Layout gates measured in the page. */
 function measure(touch) {
   const vw = document.documentElement.clientWidth;
   const visible = (el) => {
@@ -164,15 +158,19 @@ function measure(touch) {
   return { pageOverflow: document.documentElement.scrollWidth - vw, overflow, small, nearTouch, tinyInputs };
 }
 
-// The report is saved after every shot, so a killed run loses nothing; --resume skips shots already taken.
+// Saved after every shot, so a killed run loses nothing.
 const reportFile = join(out, "report.json");
 const earlier = existsSync(reportFile) ? JSON.parse(readFileSync(reportFile, "utf8")) : [];
-const done = new Set(has("resume") ? earlier.filter((r) => !r.failed).map((r) => `${r.id}@${r.width}`) : []);
+const key = (r) => `${r.id}@${r.width}`;
+const done = new Set(has("resume") ? earlier.filter((r) => !r.failed).map(key) : []);
 const report = [];
 const save = () => {
-  const fresh = new Set(report.map((r) => `${r.id}@${r.width}`));
-  writeFileSync(reportFile, JSON.stringify([...earlier.filter((r) => !fresh.has(`${r.id}@${r.width}`)), ...report], null, 2));
+  const fresh = new Set(report.map(key));
+  const all = [...earlier.filter((r) => !fresh.has(key(r))), ...report];
+  writeFileSync(reportFile, JSON.stringify(all, null, 2));
+  return all;
 };
+const selected = new Set();
 for (const screen of screens) {
   const sizes = screen.viewport
     ? [screen.viewport]
@@ -183,23 +181,14 @@ for (const screen of screens) {
     const { width } = size;
     const touch = width < 1024 || size.height < 520;
     const tag = screen.viewport ? `${width}x${size.height}` : `${width}`;
-    if (done.has(`${screen.id}@${tag}`)) continue;
+    const shot = `${screen.id}@${tag}`;
+    selected.add(shot);
+    if (done.has(shot)) continue;
     const entry = { id: screen.id, width: tag, errors: [] };
-    const context = await (await browserFor(touch)).newContext({
-      viewport: size,
-      permissions: screen.permissions,
-      deviceScaleFactor: scale,
-      isMobile: touch,
-      hasTouch: touch,
-      reducedMotion: has("reduce") ? "reduce" : "no-preference",
-      storageState: screen.account ? await authState(screen.account) : undefined,
-    });
-    await config.prepare?.(context, screen);
-    const page = await context.newPage();
-    page.setDefaultTimeout(15_000);
-    page.on("console", (m) => m.type() === "error" && entry.errors.push(m.text().slice(0, 200)));
-    page.on("pageerror", (e) => entry.errors.push(String(e).slice(0, 200)));
-    // A shot that hangs (a page script, axe, a never-ending scroll) is cut off and recorded as failed.
+    const failShot = join(out, `${shot}.fail.png`);
+    let context;
+    let page;
+    // A shot that hangs (a sign-in, a page script, axe, a never-ending scroll) is cut off and recorded as failed.
     let watchdog;
     const hung = new Promise((_, reject) => {
       watchdog = setTimeout(() => reject(new Error("shot took over 2 minutes")), 120_000);
@@ -208,10 +197,24 @@ for (const screen of screens) {
       await Promise.race([hung, shoot()]);
     } catch (error) {
       entry.failed = String(error).split("\n")[0].slice(0, 300);
-      await page.screenshot({ path: join(out, `${screen.id}@${tag}.fail.png`), timeout: 10_000 }).catch(() => undefined);
+      await page?.screenshot({ path: failShot, timeout: 10_000 }).catch(() => undefined);
     }
     clearTimeout(watchdog);
     async function shoot() {
+      context = await (await browserFor(touch)).newContext({
+        viewport: size,
+        permissions: screen.permissions,
+        deviceScaleFactor: scale,
+        isMobile: touch,
+        hasTouch: touch,
+        reducedMotion: has("reduce") ? "reduce" : "no-preference",
+        storageState: screen.account ? await authState(screen.account, failShot) : undefined,
+      });
+      await config.prepare?.(context, screen);
+      page = await context.newPage();
+      page.setDefaultTimeout(15_000);
+      page.on("console", (m) => m.type() === "error" && entry.errors.push(m.text().slice(0, 200)));
+      page.on("pageerror", (e) => entry.errors.push(String(e).slice(0, 200)));
       await page.goto(`${base}${screen.route}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
       await settle(page, screen.motion);
       if (screen.account && config.signedIn && !(await config.signedIn(page, screen.account))) {
@@ -234,7 +237,7 @@ for (const screen of screens) {
         .filter((v) => v.impact === "serious" || v.impact === "critical")
         .map((v) => `${v.id} (${v.nodes.length}): ${v.nodes[0].target.join(" ")}`);
       if (shots) {
-        const png = join(out, `${screen.id}@${tag}.png`);
+        const png = join(out, `${shot}.png`);
         await page.screenshot({ path: png, fullPage: !screen.viewportOnly, animations: "allow" });
         // WebP stops at 16383px a side; very long pages are scaled to fit.
         execFileSync("magick", [png, "-resize", "16000x16000>", "-quality", "72", png.replace(/\.png$/, ".webp")], {
@@ -247,7 +250,7 @@ for (const screen of screens) {
       !entry.failed && entry.pageOverflow <= 0 && entry.small?.length === 0 && entry.tinyInputs?.length === 0 && entry.axe?.length === 0;
     report.push(entry);
     save();
-    console.log(`${entry.pass ? "PASS" : "FAIL"} ${screen.id}@${tag}${entry.failed ? ` ${entry.failed}` : ""}`);
+    console.log(`${entry.pass ? "PASS" : "FAIL"} ${shot}${entry.failed ? ` ${entry.failed}` : ""}`);
     // Keep the refreshed sign-in for the next page of this account; a shot that signed out or loaded signed out
     // drops it, so the next page signs in afresh.
     if (screen.account) {
@@ -255,12 +258,13 @@ for (const screen of screens) {
       if (entry.failed || screen.steps?.includes("Sign out")) rmSync(saved, { force: true });
       else await context.storageState({ path: saved });
     }
-    await Promise.race([context.close(), new Promise((r) => setTimeout(r, 15_000))]);
+    await Promise.race([context?.close(), new Promise((r) => setTimeout(r, 15_000))]);
   }
 }
 await browser.close();
 await touchBrowser?.close();
-save();
-const failed = report.filter((r) => !r.pass).length;
-console.log(`${report.length - failed}/${report.length} passed. Report: ${reportFile}`);
+// Also the only write when nothing ran, so the report named below exists.
+const results = save().filter((r) => selected.has(key(r)));
+const failed = results.filter((r) => !r.pass).length;
+console.log(`${results.length - failed}/${results.length} passed. Report: ${reportFile}`);
 process.exitCode = failed ? 1 : 0;

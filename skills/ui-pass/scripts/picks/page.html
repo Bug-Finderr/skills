@@ -108,12 +108,15 @@ function item(id, title) {
 function pickRow(id, question, options) {
   const row = el("div", { class: "pickrow", "data-id": id });
   if (question) row.append(el("span", { class: "q" }, question));
+  const note = el("input", { class: "note", id: `note-${id}`, placeholder: "Note (optional)", "aria-label": `Note: ${id}` });
   for (const opt of options) {
     const b = el("button", { class: "chip", type: "button", "aria-pressed": "false" }, opt);
-    b.onclick = () => save(id, { choice: picks.get(id)?.choice === opt ? "" : opt });
+    b.onclick = () => {
+      clearTimeout(pending.get(id));
+      save(id, { choice: picks.get(id)?.choice === opt ? "" : opt, note: note.value });
+    };
     row.append(b);
   }
-  const note = el("input", { class: "note", id: `note-${id}`, placeholder: "Note (optional)", "aria-label": `Note: ${id}` });
   note.oninput = () => {
     clearTimeout(pending.get(id));
     pending.set(id, setTimeout(() => save(id, { note: note.value }), 700));
@@ -144,13 +147,15 @@ async function save(id, patch) {
     return;
   }
   // One write at a time per document; the last state wins.
+  const data = picks.get(id);
   const job = (writing.get(id) ?? Promise.resolve()).then(async () => {
     try {
-      await store.collection("picks").doc(id).set(picks.get(id));
+      await store.collection("picks").doc(id).set(data);
       flag.textContent = "Saved";
     } catch {
       flag.textContent = "Not saved";
     }
+    if (writing.get(id) === job) writing.delete(id);
   });
   writing.set(id, job);
 }
@@ -230,7 +235,7 @@ async function boot() {
   store.collection("picks").onSnapshot(
     (snap) => {
       for (const doc of snap.docs) {
-        if (writing.has(doc.id) && snap.metadata.hasPendingWrites) continue;
+        if (writing.has(doc.id)) continue;
         picks.set(doc.id, { choice: "", note: "", ...doc.data() });
         paint(doc.id);
       }

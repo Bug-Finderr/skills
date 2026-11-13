@@ -1,6 +1,6 @@
 # Taste
 
-The user's taste across projects, one rule per line with its reason. Anything tied to a project's palette, fonts or art style belongs in that project's taste file, and this public file names no project, client or person.
+The author's taste across projects, one rule per line with its reason; fork the repo to keep your own. Anything tied to a project's palette, fonts or art style belongs in that project's taste file, and this public file names no project, client or person.
 
 ## Look
 - Simple beats decorated: the smallest move that fixes the problem.

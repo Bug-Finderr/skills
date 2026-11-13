@@ -9,10 +9,9 @@ for a in "$1"/*.webp; do
   b="$2/$name"
   if [ ! -f "$b" ]; then echo -e "missing\t-\t$name" >> "$out"; continue; fi
   if cmp -s "$a" "$b"; then echo -e "same\t0\t$name" >> "$out"; continue; fi
-  if [ "$(magick identify -format '%wx%h' "$a")" != "$(magick identify -format '%wx%h' "$b")" ]; then
-    echo -e "size\t$(magick identify -format '%wx%h' "$a")->$(magick identify -format '%wx%h' "$b")\t$name" >> "$out"
-    continue
-  fi
+  sa=$(magick identify -format '%wx%h' "$a")
+  sb=$(magick identify -format '%wx%h' "$b")
+  if [ "$sa" != "$sb" ]; then echo -e "size\t$sa->$sb\t$name" >> "$out"; continue; fi
   px=$(magick compare -metric AE -fuzz 2% "$a" "$b" null: 2>&1 | cut -d' ' -f1)
   if [ "$px" = "0" ]; then echo -e "same\t0\t$name" >> "$out"; else echo -e "pixels\t$px\t$name" >> "$out"; fi
 done

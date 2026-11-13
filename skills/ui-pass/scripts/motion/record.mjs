@@ -2,11 +2,12 @@
 //        [--dir <shots>] [--widths 390,1440] [--data] [--skip-done] [--list]
 // Two sets line up to a video frame only when their moments replay the same steps with the same fixed waits.
 import { execFileSync } from "node:child_process";
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
+import { HEIGHT, TOUCH_ARGS } from "../viewports.mjs";
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -25,7 +26,8 @@ const positional = args.filter((a, i) => !a.startsWith("--") && !valued.has(args
 const [set, ...prefixes] = positional;
 const withData = args.includes("--data");
 const widthsWanted = flag("widths", "390,1440").split(",").map(Number);
-const SCRATCH = process.env.MOTION_SCRATCH ?? join(tmpdir(), "ui-pass-motion");
+// One folder per run, so runs at once keep their own raw videos and frames.
+const SCRATCH = join(process.env.MOTION_SCRATCH ?? join(tmpdir(), "ui-pass-motion"), `${set}-${process.pid}`);
 
 const picked = MOMENTS.filter((m) => prefixes.length === 0 || prefixes.some((p) => m.id.startsWith(p)));
 if (args.includes("--list")) {
@@ -39,8 +41,8 @@ mkdirSync(SCRATCH, { recursive: true });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const SIZES = {
-  390: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 1 },
-  1440: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 },
+  390: { viewport: { width: 390, height: HEIGHT[390] }, isMobile: true, hasTouch: true },
+  1440: { viewport: { width: 1440, height: HEIGHT[1440] } },
 };
 const STILL_SCALE = { 390: 2, 1440: 1 };
 const STRIP = { 390: { frame: 195, cols: 10 }, 1440: { frame: 360, cols: 8 } };
@@ -142,18 +144,19 @@ function strip(video, width, dest) {
   return files.length;
 }
 
-const prior = args.includes("--skip-done") ? JSON.parse(readFileSync(join(out, "report.json"), "utf8")).filter((r) => r.ok) : [];
-const report = [...prior];
-const done = (m, width) => prior.some((r) => r.id === m.id && r.width === width);
+const reportFile = join(out, "report.json");
+const report = existsSync(reportFile) ? JSON.parse(readFileSync(reportFile, "utf8")) : [];
+const skipDone = args.includes("--skip-done");
+const done = (m, width) => skipDone && report.some((r) => r.ok && r.id === m.id && r.width === width);
+const ran = [];
 // Touch widths get a browser whose pointer is coarse, since a context's touch emulation alone keeps a fine pointer.
-const launch = (width) =>
-  chromium.launch({
-    channel: "chrome",
-    args: width === 390 ? ["--blink-settings=primaryPointerType=2,availablePointerTypes=2,primaryHoverType=1,availableHoverTypes=1"] : [],
-  });
+const launch = (width) => chromium.launch({ channel: "chrome", args: width === 390 ? TOUCH_ARGS : [] });
 // A hung take (it happened once with no error) must not stall the set.
-const within = (promise, ms) =>
-  Promise.race([promise, new Promise((_, reject) => setTimeout(() => reject(new Error(`take hung for ${ms / 1000} s`)), ms))]);
+const within = (promise, ms) => {
+  let timer;
+  const hung = new Promise((_, reject) => (timer = setTimeout(() => reject(new Error(`take hung for ${ms / 1000} s`)), ms)));
+  return Promise.race([promise, hung]).finally(() => clearTimeout(timer));
+};
 for (const width of widthsWanted) {
   const todo = picked.filter((m) => m.widths.includes(width) && (withData || !m.data) && !done(m, width));
   if (!todo.length) continue;
@@ -186,17 +189,21 @@ for (const width of widthsWanted) {
         row.ok = false;
         row.error = String(e.message ?? e).split("\n")[0];
         console.log("  FAILED", row.error);
+        process.exitCode = 1;
         if (/hung/.test(row.error)) {
           await browser.close().catch(() => {});
           browser = await launch(width);
         }
       }
-      report.push(row);
-      writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
+      ran.push(row);
+      const at = report.findIndex((r) => r.id === m.id && r.width === width);
+      if (at === -1) report.push(row);
+      else report[at] = row;
+      writeFileSync(reportFile, JSON.stringify(report, null, 2));
     }
   } finally {
     await browser.close().catch(() => {});
   }
 }
-rmSync(join(SCRATCH, "raw"), { recursive: true, force: true });
-console.log(report.map((r) => `${r.ok ? "ok  " : "FAIL"} ${r.id}@${r.width}${r.ok ? ` ${r.frames} frames` : ` ${r.error}`}`).join("\n"));
+rmSync(SCRATCH, { recursive: true, force: true });
+console.log(ran.map((r) => `${r.ok ? "ok  " : "FAIL"} ${r.id}@${r.width}${r.ok ? ` ${r.frames} frames` : ` ${r.error}`}`).join("\n"));

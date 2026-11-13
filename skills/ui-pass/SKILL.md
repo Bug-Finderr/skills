@@ -12,7 +12,7 @@ Project rules and the user's own words win where they differ. Script usage, conf
 - Research every rule and skill that touches UI (file and line), the live UI and real-visitor vitals, and outside methods with evidence they beat a plain prompt.
 - Publish one designed page: polish or redesign, decisions with your recommendation each, the user's three gates (pick a direction, approve the pilot, final review), scoring, keep/edit/cut per rule, and skills on, name-only or off. Then stop.
 - Apply what the user approves: UI rules in one path-scoped rules file (extend the project's own); skills that contradict the look off, style skills name-only.
-- Settings, skill switches and hooks load only in a new session: say so and stop for the restart.
+- Settings, skill switches and hooks may not apply until a reload or a new session: say so and stop until they do.
 - Point to design guides, never summarise them: the `AGENTS.md` of each guide in this skill's `guides/` when present, and any the project names.
 - Finish and report the phase in hand; a later step the user mentions is not a go-ahead.
 

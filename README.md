@@ -50,8 +50,8 @@ This route has no update notices. Run `npx skills@latest update -g` now and then
 - `raise-pr`: the GitHub CLI (`gh`) with the [gh-pr-review](https://github.com/agynio/gh-pr-review) extension, and the [Codex CLI](https://github.com/openai/codex) for the second review.
 - `raise-pr` videos: Node, Google Chrome, `playwright-core` in bun's cache (`bun add -g playwright-core`) and Playwright's ffmpeg (`npx playwright-core install ffmpeg`).
 - `codex-usage`: the Codex CLI.
-- `ui-pass`: Node, Google Chrome, `playwright` and `@axe-core/playwright` installed in the project, ImageMagick 7, ffmpeg with ffprobe, an OpenRouter key for the Muse Wonder judge, and the Codex CLI for the gpt judge.
-- `ui-pass` guides: do your own UI and UX research first (layout, states, copy, motion) and save each guide as a folder with an `AGENTS.md` in `skills/ui-pass/guides/`, which git ignores. With the plugin install, updates replace that folder, so keep guides elsewhere and name them in your project's UI rules.
+- `ui-pass`: Node, Google Chrome, `playwright` and `@axe-core/playwright` installed in the project, ImageMagick 7, ffmpeg with ffprobe, Playwright's video encoder (`npx playwright install ffmpeg`), an OpenRouter key for the Muse Wonder judge, and the Codex CLI for the gpt judge.
+- `ui-pass` guides: do your own UI and UX research first (layout, states, copy, motion) and save each guide as a folder with an `AGENTS.md` in `skills/ui-pass/guides/`, which git ignores. With the plugin install, updates replace that folder, so keep guides elsewhere and name them in your project's UI rules. `taste.md` is my taste; fork the repo to keep yours.
 
 ## License
 
