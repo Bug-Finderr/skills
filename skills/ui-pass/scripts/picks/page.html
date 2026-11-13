@@ -108,9 +108,9 @@ function item(id, title) {
 function pickRow(id, question, options) {
   const row = el("div", { class: "pickrow", "data-id": id });
   if (question) row.append(el("span", { class: "q" }, question));
-  const note = el("input", { class: "note", id: `note-${id}`, placeholder: "Note (optional)", "aria-label": `Note: ${id}` });
+  const note = el("input", { class: "note", id: `note-${id}`, placeholder: "Note (optional)", "aria-label": `Note: ${id}`, disabled: "" });
   for (const opt of options) {
-    const b = el("button", { class: "chip", type: "button", "aria-pressed": "false" }, opt);
+    const b = el("button", { class: "chip", type: "button", "aria-pressed": "false", disabled: "" }, opt);
     b.onclick = () => {
       clearTimeout(pending.get(id));
       pending.delete(id);
@@ -138,7 +138,8 @@ function paint(id) {
   const p = picks.get(id) ?? {};
   row.querySelectorAll(".chip").forEach((b) => b.setAttribute("aria-pressed", String(b.textContent === p.choice)));
   const note = row.querySelector(".note");
-  if (document.activeElement !== note) note.value = p.note ?? "";
+  // A typed note waiting to save stays in the box; the snapshot still updates the choice.
+  if (document.activeElement !== note && !pending.has(id)) note.value = p.note ?? "";
   items.get(id).answer.textContent = p.choice || (p.note ? "Note only" : "");
 }
 
@@ -228,24 +229,30 @@ async function boot() {
   }, { threshold: 0.4 });
   document.querySelectorAll("video[data-auto]").forEach((v) => seen.observe(v));
   const status = $("#status");
-  const timer = setTimeout(() => (status.textContent = "Saved picks can't be reached yet; new picks may not save."), 10000);
+  // Controls wait for saved picks, or a pick made first would overwrite the saved one.
+  const ready = () => document.querySelectorAll(".chip, .note").forEach((c) => (c.disabled = false));
+  const timer = setTimeout(() => {
+    status.textContent = "Saved picks can't be reached yet; new picks may not save.";
+    ready();
+  }, 10000);
   store = await window.claude?.use?.("db");
   if (!store) {
     clearTimeout(timer);
     status.textContent = "Picks save once this page is published on claude.ai; here they are not kept.";
+    ready();
     return;
   }
   let folded = false;
   store.collection("picks").onSnapshot(
     (snap) => {
       for (const doc of snap.docs) {
-        // A local choice or note not yet saved wins over an older saved copy.
-        if (writing.has(doc.id) || pending.has(doc.id)) continue;
+        if (writing.has(doc.id)) continue;
         picks.set(doc.id, { choice: "", note: "", ...doc.data() });
         paint(doc.id);
       }
       if (snap.metadata.fromCache) return;
       clearTimeout(timer);
+      ready();
       const done = [...items.keys()].filter((id) => answered(picks.get(id)));
       if (!folded) for (const id of done) items.get(id).block.open = false;
       folded = true;
@@ -254,6 +261,7 @@ async function boot() {
     () => {
       clearTimeout(timer);
       status.textContent = "Saved picks could not load. New picks may not save.";
+      ready();
     },
   );
 }
