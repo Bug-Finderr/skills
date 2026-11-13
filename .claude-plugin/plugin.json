@@ -1,7 +1,7 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "bf",
-  "description": "Opinionated skills for raising PRs end to end and for driving the Codex CLI from Claude.",
+  "description": "Opinionated skills for raising PRs end to end, driving the Codex CLI from Claude and running UI polish passes.",
   "author": {
     "name": "Bug-Finderr",
     "url": "https://github.com/Bug-Finderr"
@@ -9,5 +9,5 @@
   "homepage": "https://github.com/Bug-Finderr/skills",
   "repository": "https://github.com/Bug-Finderr/skills",
   "license": "MIT",
-  "keywords": ["pull-requests", "code-review", "codex", "skills"]
+  "keywords": ["pull-requests", "code-review", "codex", "ui", "design-review", "skills"]
 }

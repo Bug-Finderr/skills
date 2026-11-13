@@ -1,0 +1,272 @@
+<title></title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+:root{
+  --bg:#f7f7f5; --panel:#ffffff; --sunk:#eeeeeb; --ink:#1c1c1b; --muted:#5d5d58; --line:#d5d5cf; --accent:#2f5bd3;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; --mono:ui-monospace,"SF Mono",Consolas,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#151515; --panel:#1f1f1e; --sunk:#0f0f0f; --ink:#ececea; --muted:#a3a39d; --line:#3a3a37; --accent:#8aa9ff; color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#151515; --panel:#1f1f1e; --sunk:#0f0f0f; --ink:#ececea; --muted:#a3a39d; --line:#3a3a37; --accent:#8aa9ff; color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--sans)}
+.wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 72px}
+h1{font-size:clamp(26px,4vw,34px);line-height:1.15;margin:0 0 6px;text-wrap:balance}
+h2{font-size:21px;line-height:1.25;margin:0;text-wrap:balance}
+h3{font-size:16px;line-height:1.35;margin:0;display:inline}
+p{max-width:78ch;margin:0}
+.muted{color:var(--muted)}
+[hidden]{display:none!important}
+section.block{display:flex;flex-direction:column;gap:12px;padding-block:28px;border-top:2px solid var(--line)}
+.status{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);border-bottom:1px solid var(--line);padding:8px 0;font-size:13px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.status b{color:var(--ink)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+.subhead{font-size:13px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:22px}
+.q-block{padding-block:14px;border-top:1px dashed var(--line)}
+.q-block:first-of-type{border-top:0}
+.q-block>summary{cursor:pointer;padding-block:10px;min-height:44px;box-sizing:border-box}
+.q-block>summary:focus-visible,.chip:focus-visible,.note:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.answer{display:inline-block;max-width:100%;margin-left:10px;font:600 12px var(--mono);color:var(--accent)}
+.body{display:flex;flex-direction:column;gap:10px;padding-top:6px}
+.opts{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
+.opts.full{grid-template-columns:minmax(0,1fr)}
+.opts.full .shot{max-width:1100px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.tag{align-self:flex-start;font:600 12px var(--mono);padding:1px 8px;border:1px solid currentColor;border-radius:999px}
+.opt .line,.rec-line{font-size:14px}
+.facts{font-size:14px;color:var(--muted)}
+figure{margin:0;min-width:0}
+figcaption{font-size:13px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.shot,video{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:6px;background:var(--sunk)}
+video{background:#000}
+.shot.phone{max-width:260px}
+video.phone{max-width:280px}
+.media{display:grid;gap:8px;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))}
+.media.one{grid-template-columns:minmax(0,1fr)}
+.opt .media.one{justify-items:start}
+.lead{display:grid;gap:8px;grid-template-columns:minmax(0,1fr)}
+.lead .shot{max-width:900px}
+.lead .shot.phone{max-width:300px}
+.bpairs{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(min(100%,520px),1fr))}
+.bpairs.wide{grid-template-columns:minmax(0,1fr)}
+.bpair{display:grid;gap:8px;grid-template-columns:repeat(2,minmax(0,260px));min-width:0}
+.bpairs.wide .bpair{grid-template-columns:minmax(0,1fr)}
+.bpairs.wide .shot{width:auto;max-width:100%}
+.pickrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:10px}
+.pickrow .q{font-weight:600;margin-right:4px}
+.chip{font:600 13px var(--sans);min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:999px;background:var(--bg);color:var(--ink);cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.note{flex:1 1 240px;min-width:0;font:16px var(--sans);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;min-height:44px;padding:6px 10px}
+.saved{font-size:12px;color:var(--muted);min-width:5ch}
+</style>
+
+<div class="wrap">
+  <h1 id="title"></h1>
+  <p class="muted" id="intro"></p>
+  <div class="status" id="status">Loading your saved picks…</div>
+
+  <section class="block" id="opts">
+    <h2>Pick one each</h2>
+    <div id="optsBody"></div>
+  </section>
+
+  <section class="block" id="checks">
+    <h2>Built: check them</h2>
+    <div id="checkBody"></div>
+  </section>
+</div>
+
+<script>
+/*DATA*/
+
+const $ = (sel, root = document) => root.querySelector(sel);
+const el = (tag, attrs = {}, ...kids) => {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) k === "class" ? (n.className = v) : n.setAttribute(k, v);
+  for (const kid of kids) kid != null && n.append(kid);
+  return n;
+};
+
+// Picks live in the artifact's store, one document per question: {choice, note}.
+const picks = new Map();
+const items = new Map();
+const rows = new Map();
+const pending = new Map();
+const writing = new Map();
+const answered = (p) => p?.choice || p?.note;
+let store = null;
+
+// Each question or check folds to its title and answer; answered ones start folded on the next visit.
+function item(id, title) {
+  const answer = el("span", { class: "answer" });
+  const body = el("div", { class: "body" });
+  const block = el("details", { class: "q-block", open: "" }, el("summary", {}, el("h3", {}, title), answer), body);
+  items.set(id, { block, answer });
+  return { block, body };
+}
+
+function pickRow(id, question, options) {
+  const row = el("div", { class: "pickrow", "data-id": id });
+  if (question) row.append(el("span", { class: "q" }, question));
+  const note = el("input", { class: "note", id: `note-${id}`, placeholder: "Note (optional)", "aria-label": `Note: ${id}`, disabled: "" });
+  for (const opt of options) {
+    const b = el("button", { class: "chip", type: "button", "aria-pressed": "false", disabled: "" }, opt);
+    b.onclick = () => {
+      clearTimeout(pending.get(id));
+      pending.delete(id);
+      save(id, { choice: picks.get(id)?.choice === opt ? "" : opt, note: note.value });
+    };
+    row.append(b);
+  }
+  note.oninput = () => {
+    clearTimeout(pending.get(id));
+    pending.set(id, setTimeout(() => {
+      pending.delete(id);
+      save(id, { note: note.value });
+    }, 700));
+  };
+  row.append(note, el("span", { class: "saved", "aria-live": "polite" }));
+  rows.set(id, row);
+  paint(id);
+  return row;
+}
+
+// The store can hold documents from questions no longer on the page.
+function paint(id) {
+  const row = rows.get(id);
+  if (!row) return;
+  const p = picks.get(id) ?? {};
+  row.querySelectorAll(".chip").forEach((b) => b.setAttribute("aria-pressed", String(b.textContent === p.choice)));
+  const note = row.querySelector(".note");
+  // A typed note waiting to save stays in the box; the snapshot still updates the choice.
+  if (document.activeElement !== note && !pending.has(id)) note.value = p.note ?? "";
+  items.get(id).answer.textContent = p.choice || (p.note ? "Note only" : "");
+}
+
+async function save(id, patch) {
+  picks.set(id, { choice: "", note: "", ...picks.get(id), ...patch });
+  paint(id);
+  const flag = rows.get(id).querySelector(".saved");
+  if (!store) {
+    flag.textContent = "Not saved";
+    return;
+  }
+  // One write at a time per document; the last state wins.
+  const data = picks.get(id);
+  const job = (writing.get(id) ?? Promise.resolve()).then(async () => {
+    try {
+      await store.collection("picks").doc(id).set(data);
+      flag.textContent = "Saved";
+    } catch {
+      flag.textContent = "Not saved";
+    }
+    if (writing.get(id) === job) writing.delete(id);
+  });
+  writing.set(id, job);
+}
+
+const figure = (m) =>
+  el("figure", {}, el("figcaption", {}, m.cap), m.video
+    ? el("video", { class: m.phone ? "phone" : "", src: m.src, controls: "", muted: "", loop: "", playsinline: "", preload: "metadata", "data-auto": "" })
+    : el("img", { class: m.phone ? "shot phone" : "shot", src: m.src, alt: m.cap, loading: "lazy" }));
+const media = (list, stack = false) => el("div", { class: list.length === 1 || stack ? "media one" : "media" }, ...list.map(figure));
+
+function renderQuestions(list) {
+  const box = $("#optsBody");
+  let group = "";
+  for (const q of list) {
+    if (q.group && q.group !== group) box.append(el("p", { class: "subhead" }, (group = q.group)));
+    const { block, body } = item(q.id, q.title);
+    if (q.text) body.append(el("p", {}, q.text));
+    if (q.media.length) body.append(media(q.media));
+    const opts = el("div", { class: q.full ? "opts full" : "opts" });
+    for (const o of q.opts) {
+      const card = el("div", { class: "card opt" }, el("span", { class: "tag" }, o.label));
+      if (o.line) card.append(el("p", { class: "line" }, o.line));
+      if (o.media.length) card.append(media(o.media, true));
+      opts.append(card);
+    }
+    body.append(opts);
+    if (q.facts) body.append(el("p", { class: "facts" }, q.facts));
+    body.append(el("p", { class: "rec-line" }, el("b", {}, q.rec)), pickRow(q.id, "Your pick:", q.opts.map((o) => o.label)));
+    box.append(block);
+  }
+}
+
+// Before and after arrive as consecutive pairs; phone pairs sit side by side, wider pairs stack at full width.
+function renderChecks(list) {
+  const box = $("#checkBody");
+  for (const q of list) {
+    const { block, body } = item(q.id, q.title);
+    if (q.text) body.append(el("p", {}, q.text));
+    if (q.lead.length) body.append(el("div", { class: "lead" }, ...q.lead.map(figure)));
+    const phone = el("div", { class: "bpairs" });
+    const wide = el("div", { class: "bpairs wide" });
+    for (let i = 0; i + 1 < q.pairs.length; i += 2) {
+      (q.pairs[i].phone ? phone : wide).append(el("div", { class: "bpair" }, figure(q.pairs[i]), figure(q.pairs[i + 1])));
+    }
+    for (const g of [phone, wide]) if (g.childElementCount) body.append(g);
+    if (q.rec) body.append(el("p", { class: "rec-line" }, el("b", {}, q.rec)));
+    body.append(pickRow(q.id, "Your call:", ["Looks right", "Something is off"]));
+    box.append(block);
+  }
+}
+
+async function boot() {
+  $("#title").textContent = PAGE.title;
+  $("#intro").textContent = PAGE.intro ?? "";
+  renderQuestions(PAGE.questions);
+  renderChecks(PAGE.checks);
+  $("#opts").hidden = !PAGE.questions.length;
+  $("#checks").hidden = !PAGE.checks.length;
+  // Clips play while on screen, so each option is seen moving without a tap.
+  const seen = new IntersectionObserver((entries) => {
+    for (const { target, isIntersecting } of entries) {
+      target.muted = true;
+      if (isIntersecting) target.play().catch(() => {});
+      else target.pause();
+    }
+  }, { threshold: 0.4 });
+  document.querySelectorAll("video[data-auto]").forEach((v) => seen.observe(v));
+  const status = $("#status");
+  // Controls wait for saved picks, or a pick made first would overwrite the saved one.
+  const ready = () => document.querySelectorAll(".chip, .note").forEach((c) => (c.disabled = false));
+  const timer = setTimeout(() => {
+    if (store) status.textContent = "Saved picks can't be reached yet; answers open once they load.";
+    else {
+      status.textContent = "Saved picks can't be reached; new picks may not save.";
+      ready();
+    }
+  }, 10000);
+  store = await window.claude?.use?.("db");
+  if (!store) {
+    clearTimeout(timer);
+    status.textContent = "Picks save once this page is published on claude.ai; here they are not kept.";
+    ready();
+    return;
+  }
+  let folded = false;
+  store.collection("picks").onSnapshot(
+    (snap) => {
+      for (const doc of snap.docs) {
+        if (writing.has(doc.id)) continue;
+        picks.set(doc.id, { choice: "", note: "", ...doc.data() });
+        paint(doc.id);
+      }
+      if (snap.metadata.fromCache) return;
+      clearTimeout(timer);
+      ready();
+      const done = [...items.keys()].filter((id) => answered(picks.get(id)));
+      if (!folded) for (const id of done) items.get(id).block.open = false;
+      folded = true;
+      status.replaceChildren(el("b", {}, `${done.length} of ${items.size} answered`), " Picks save as you tap; I read them from here.");
+    },
+    () => {
+      clearTimeout(timer);
+      status.textContent = "Saved picks could not load. New picks may not save.";
+      ready();
+    },
+  );
+}
+boot();
+</script>

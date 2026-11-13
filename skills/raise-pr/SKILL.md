@@ -17,7 +17,7 @@ Project rules and recent merged PRs win where they differ from this.
 
 ## Review
 - Own checks green, then a clean Opus agent and gpt-6.1-sol (codex) in parallel on the full diff and the PR text.
-- Lenses: what can break in production, code nothing needs, and project and user rules.
+- Lenses: what can break in production, code nothing needs, and project and user rules. For UI changes the reviewers also get before and after screenshots at phone and laptop width.
 - Refute each finding against the code before applying; keep anything uncertain on security. Re-review the fix commits.
 - Keep the diff small: repeated lines become one helper, no copies of what git holds, no nice-to-haves.
 

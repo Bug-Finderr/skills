@@ -1,0 +1,18 @@
+You will see numbered pairs. Each pair shows two versions, X and Y, of the same part of one screen of an app or website. Test data may differ a little between versions: ignore names, numbers, dates and timestamps.
+
+For each pair, judge as a demanding product designer which version is the better interface. Check:
+- visual hierarchy: is the main thing on the screen the first thing you see?
+- spacing and alignment
+- typography: sizes, weights, line length, truncation
+- colour and contrast
+- controls: clear what they do, comfortable to hit, consistent with each other
+- empty, loading and error states
+- copy: plain, short, no jargon
+- on phone pieces: how much it feels like a polished native app
+
+Answer X, Y or same; say same when you cannot see a difference that matters. Then list the concrete problems still visible in the better version, each naming where, and anything the worse version does better.
+
+End your answer with one JSON block in exactly this shape:
+```json
+{"pairs":[{"pair":"01","better":"X","why":"one sentence","problems":["where: what is wrong"]}],"top_fixes":["the most valuable fixes across all pairs, each naming the pair and where"]}
+```
