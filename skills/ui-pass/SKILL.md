@@ -5,7 +5,7 @@ description: Use when setting up or running a UI and UX polish or redesign pass 
 
 # UI pass
 
-Project rules and the user's own words win where they differ. Script usage, config and traps are in `reference.md`.
+Project rules and the user's own words win. Script usage, config and traps are in `reference.md`.
 - One screen or component is not a pass: check it at phone and laptop width and stop.
 
 ## Setup: nothing changes yet
@@ -25,7 +25,7 @@ Project rules and the user's own words win where they differ. Script usage, conf
 
 ## Rounds
 - Polish keeps layout, copy meaning, art and motion: a direction from 3-4 static renders, then one built pilot on every kind of page it touches, public ones included.
-- Design rounds offer 3-4 options that differ in idea, at least one bold; motion reaches the user as clips first.
+- Design rounds offer 3-4 options that differ in idea, at least one bold; show the shortlisted directions (a line and a still each) and build only the ones the user approves; motion reaches the user as clips first.
 - Judge every option against both taste files, cut the weak ones and recommend your own pick.
 - Ask on a picks page (`scripts/picks`): each option has a visual, a one-line consequence and your pick, with its open state inside it; remove stale ones.
 - Build only what the user picked, on every instance of that element; "answered" ends a round.
@@ -50,6 +50,9 @@ Project rules and the user's own words win where they differ. Script usage, conf
 - Items on different files code in parallel in throwaway worktrees with no dev server; one capture agent shoots them all; merge each lane when it ends and branch the next from the fresh pass branch.
 - Each agent writes to its own output set; long jobs run in the background with a notification, never a polling loop.
 - Never idle on an outside wait while independent work exists.
+- Parts that don't depend on each other fan out, inside an agent's job too, and each starts as soon as its own input lands: verification is one build and server, then each check (journeys per width, gates, colour, probes, clips) in its own process and browser at once, frame-rate runs last and alone.
+- An agent likely to run past 20 minutes is split by file area up front.
+- Slow checks (slowed-CPU frame rate, full journeys) and the full set run once, on the final build; a fix reruns only the checks and takes that cover it (`record.mjs --skip-done`, one moment prefix).
 - Restart whatever the memory reaper kills; keep unused dev servers off.
 - Unattended agents avoid commands that need approval (write to a new folder instead of deleting) and undo with `git revert`.
 - The real phone is the user's own browser: ask first, check its screen, clear only localhost cookies.

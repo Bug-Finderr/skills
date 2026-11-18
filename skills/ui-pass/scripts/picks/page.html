@@ -14,7 +14,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--sans)}
 h1{font-size:clamp(26px,4vw,34px);line-height:1.15;margin:0 0 6px;text-wrap:balance}
 h2{font-size:21px;line-height:1.25;margin:0;text-wrap:balance}
 h3{font-size:16px;line-height:1.35;margin:0;display:inline}
-p{max-width:78ch;margin:0}
+p{margin:0}
 .muted{color:var(--muted)}
 [hidden]{display:none!important}
 section.block{display:flex;flex-direction:column;gap:12px;padding-block:28px;border-top:2px solid var(--line)}
@@ -25,7 +25,12 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .q-block{padding-block:14px;border-top:1px dashed var(--line)}
 .q-block:first-of-type{border-top:0}
 .q-block>summary{cursor:pointer;padding-block:10px;min-height:44px;box-sizing:border-box}
-.q-block>summary:focus-visible,.chip:focus-visible,.note:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.q-block>header{padding-block:10px}
+.q-block>summary:focus-visible,.opt>summary:focus-visible,.chip:focus-visible,.note:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details.opt{display:block}
+.opt>summary{cursor:pointer;min-height:44px;box-sizing:border-box}
+.opt>summary .line{display:block;margin-top:8px}
+.opt[open]>summary{margin-bottom:10px}
 .answer{display:inline-block;max-width:100%;margin-left:10px;font:600 12px var(--mono);color:var(--accent)}
 .body{display:flex;flex-direction:column;gap:10px;padding-top:6px}
 .opts{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr))}
@@ -96,18 +101,20 @@ const writing = new Map();
 const answered = (p) => p?.choice || p?.note;
 let store = null;
 
-// Each question or check folds to its title and answer; answered ones start folded on the next visit.
-function item(id, title) {
+// A check folds to its title and answer, and an answered one starts folded on the next visit. A question stays
+// open, since its options are what fold.
+function item(id, title, folds = true) {
   const answer = el("span", { class: "answer" });
   const body = el("div", { class: "body" });
-  const block = el("details", { class: "q-block", open: "" }, el("summary", {}, el("h3", {}, title), answer), body);
+  const block = folds
+    ? el("details", { class: "q-block", open: "" }, el("summary", {}, el("h3", {}, title), answer), body)
+    : el("div", { class: "q-block" }, el("header", {}, el("h3", {}, title), answer), body);
   items.set(id, { block, answer });
   return { block, body };
 }
 
 function pickRow(id, question, options) {
-  const row = el("div", { class: "pickrow", "data-id": id });
-  if (question) row.append(el("span", { class: "q" }, question));
+  const row = el("div", { class: "pickrow", "data-id": id }, el("span", { class: "q" }, question));
   const note = el("input", { class: "note", id: `note-${id}`, placeholder: "Note (optional)", "aria-label": `Note: ${id}`, disabled: "" });
   for (const opt of options) {
     const b = el("button", { class: "chip", type: "button", "aria-pressed": "false", disabled: "" }, opt);
@@ -176,15 +183,18 @@ function renderQuestions(list) {
   let group = "";
   for (const q of list) {
     if (q.group && q.group !== group) box.append(el("p", { class: "subhead" }, (group = q.group)));
-    const { block, body } = item(q.id, q.title);
+    const { block, body } = item(q.id, q.title, false);
     if (q.text) body.append(el("p", {}, q.text));
     if (q.media.length) body.append(media(q.media));
     const opts = el("div", { class: q.full ? "opts full" : "opts" });
     for (const o of q.opts) {
-      const card = el("div", { class: "card opt" }, el("span", { class: "tag" }, o.label));
-      if (o.line) card.append(el("p", { class: "line" }, o.line));
-      if (o.media.length) card.append(media(o.media, true));
-      opts.append(card);
+      // An option folds to its name and line; its pictures and clips open under it.
+      const head = [el("span", { class: "tag" }, o.label), o.line ? el("span", { class: "line" }, o.line) : ""];
+      opts.append(
+        o.media.length
+          ? el("details", { class: "card opt" }, el("summary", {}, ...head), media(o.media, true))
+          : el("div", { class: "card opt" }, ...head),
+      );
     }
     body.append(opts);
     if (q.facts) body.append(el("p", { class: "facts" }, q.facts));

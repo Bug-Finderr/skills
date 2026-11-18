@@ -1,5 +1,4 @@
 // Builds a picks page from picks.json: stills to WebP in img/, clips to clips/, then index.html and files.json beside them.
-// Usage: node make.mjs <picks.json> [outDir=folder of picks.json]   (needs magick, ffmpeg and ffprobe on PATH)
 import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, extname, join, resolve } from "node:path";

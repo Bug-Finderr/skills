@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# Usage: bash diff.sh <before-set-dir> <after-set-dir>
-# Compares each shot of the before set with the after set: same bytes, else changed-pixel count, else a size change, or missing.
-# Writes <after-set-dir>/diff-<before-set>.tsv (status, pixels, shot) and prints the non-identical rows.
 out="$2/diff-$(basename "$1").tsv"
 : > "$out"
 for a in "$1"/*.webp; do

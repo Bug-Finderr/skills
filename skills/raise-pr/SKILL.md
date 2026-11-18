@@ -1,6 +1,6 @@
 ---
 name: raise-pr
-description: Use when opening, updating a pull request, reviewing a branch before merge, writing PR text, handling review or bot comments on an open PR, or when the user asks for PR videos, screen recordings or demo clips, even if they only say "pr", "push", "open the PR", "review this", "resolve comments" or "update the PR".
+description: Use when opening, updating a pull request, reviewing a branch before merge, writing PR text, handling review or bot comments on an open PR, or when the user asks for PR videos, before and after screenshots, screen recordings or demo clips, even if they only say "pr", "push", "open the PR", "review this", "resolve comments" or "update the PR".
 ---
 
 # Raise a PR
@@ -8,8 +8,8 @@ description: Use when opening, updating a pull request, reviewing a branch befor
 Project rules and recent merged PRs win where they differ from this.
 
 ## Prove
-- Start from latest main; check new migration numbers and file names against main and open PRs.
-- Test everything this change can make worse, old against new, at realistic scale; a smoke test only proves it runs.
+- Start from latest main and merge it again before every push, until `gh pr view --json mergeable` says MERGEABLE; check new migration numbers and file names against main and open PRs.
+- Test everything this change can make worse, old against new, at realistic scale.
 - Judge against real data with independent references, never samples you made, and plant a change to prove each comparison can fail.
 - Show a bug or hole on the base before showing it fixed, with every legitimate use still served.
 - Any bug found means fixing every instance of its pattern.
@@ -22,13 +22,17 @@ Project rules and recent merged PRs win where they differ from this.
 - Keep the diff small: repeated lines become one helper, no copies of what git holds, no nice-to-haves.
 
 ## Describe
-For a smart reader new to the codebase. Title says the effect; open with what breaks without it. Then only what applies: change, how it was tested (before and after table, data source), prod safety, to make it live (steps and who; merging often changes nothing), known limits, videos. Only facts checked this session, else "configured but untested". No em dashes, filler, Co-Authored-By or "Generated with". Update the body whenever a fix changes a fact. Self-assign.
+For a reader new to the codebase. Title says the effect; open with what breaks without it. Then only what applies: change, how it was tested (before and after table, data source), prod safety, to make it live (steps and who; merging often changes nothing), known limits, visuals. Only facts checked this session, else "configured but untested". No em dashes, filler, Co-Authored-By or "Generated with". Update the body whenever a fix changes a fact. Self-assign.
 
-## Videos (user-facing flows only)
-`scripts/vlib.mjs` with Node, not Bun; start from `scripts/example-flow.mjs`. Local dev, seeded accounts signed in the way the seed file or project docs say, setup outside the recording, one caption per step, 20 to 60 s, under 10 MB, check with `scripts/sheet.mjs`, undo test data, re-record if the UI changes. Put `![](./flow.mp4)` where it belongs in the body file; `gh pr edit <n> --body-file body.md --attach flow.mp4` uploads it and swaps in the link.
+## Visuals (user-facing changes only)
+- A changed look gets before and after stills: base against branch, same data, phone and laptop width, labelled and cropped to the change.
+- A new or changed flow (steps, timing, motion) also gets a video; a look alone doesn't need one.
+- Attach either: put `![](./file)` where it belongs in the body file; `gh pr edit <n> --body-file body.md --attach file` uploads it and swaps in the link, and `--attach` repeats for several files.
+
+Videos: `scripts/vlib.mjs` with Node, not Bun; start from `scripts/example-flow.mjs`. Local dev, seeded accounts signed in the way the seed file or project docs say, setup outside the recording, one caption per step, 20 to 60 s, under 10 MB, check with `scripts/sheet.mjs`, undo test data, re-record when a step or layout changes but not for a copy edit.
 
 ## Comments until clean
-Bots re-review every push, so loop: list unresolved threads, sort each, batch fixes into one push, reply to and resolve every thread, wait for the re-review.
+Loop: list unresolved threads, sort each, batch fixes into one push, reply to and resolve every thread, wait for the re-review.
 - Threads go through the `gh pr-review` extension (`gh extension install agynio/gh-pr-review`), each with `-R owner/repo`: `threads list <n> --unresolved`, `comments reply --pr <n> --thread-id <id> --body ...`, `threads resolve --pr <n> --thread-id <id>`.
 - After each push, wait for CI with one background `gh pr checks <n> --watch --fail-fast`, never a sleep-and-poll loop.
 

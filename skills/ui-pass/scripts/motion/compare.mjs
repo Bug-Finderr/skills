@@ -1,5 +1,4 @@
 // Stacks each moment's strip from set a over the same strip from set b: one image per moment in <shots>/<a>-vs-<b>/.
-// Usage: node compare.mjs [a=before] [b=after] [--config ui-pass.config.mjs] [--dir <shots>]
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";

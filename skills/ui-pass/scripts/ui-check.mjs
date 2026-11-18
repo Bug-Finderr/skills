@@ -1,7 +1,4 @@
-// Usage: node ui-check.mjs [id-prefix...] [--config ui-pass.config.mjs] [--out after] [--widths 390,1440] [--all-widths]
-//        [--reduce] [--scale 2] [--base <url>] [--no-shots] [--env <name>] [--resume] [--exact] [--keep-png]
 // --base changes where shots load, not where config.signIn goes.
-// Console errors and touch targets under 44px are only listed in the report; they never fail a shot.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -38,16 +35,15 @@ const screens = JSON.parse(readFileSync(resolve(config.screens), "utf8"))
 mkdirSync(out, { recursive: true });
 // One run per set: stopping a background task on Windows leaves its Node child running.
 const lock = join(out, ".lock");
-if (existsSync(lock)) {
-  const pid = Number(readFileSync(lock, "utf8"));
-  let alive = true;
+const alive = (pid) => {
   try {
-    process.kill(pid, 0);
+    return process.kill(pid, 0);
   } catch {
-    alive = false;
+    return false;
   }
-  if (alive) throw new Error(`Another ui-check (pid ${pid}) is writing ${out}; stop it first.`);
-}
+};
+const holder = existsSync(lock) && Number(readFileSync(lock, "utf8"));
+if (holder && alive(holder)) throw new Error(`Another ui-check (pid ${holder}) is writing ${out}; stop it first.`);
 writeFileSync(lock, String(process.pid));
 process.on("exit", () => rmSync(lock, { force: true }));
 // Its own sign-ins: each page load can replace the refresh token, so sign-ins shared with another process break.

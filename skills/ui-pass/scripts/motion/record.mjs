@@ -1,8 +1,6 @@
-// Usage: node record.mjs <set> [moment-prefix...] [--config ui-pass.config.mjs] [--moments ui-pass.moments.mjs]
-//        [--dir <shots>] [--widths 390,1440] [--data] [--skip-done] [--list]
 // Two sets line up to a video frame only when their moments replay the same steps with the same fixed waits.
 import { execFileSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -21,13 +19,15 @@ const MOMENTS = await load(flag("moments", "ui-pass.moments.mjs"));
 // The skill ships no node_modules: Playwright resolves from the config's folder upwards.
 const { chromium } = createRequire(configFile)("playwright");
 
-const valued = new Set(["--config", "--moments", "--dir", "--widths"]);
+const valued = new Set(["--config", "--moments", "--dir", "--widths", "--jobs"]);
 const positional = args.filter((a, i) => !a.startsWith("--") && !valued.has(args[i - 1]));
 const [set, ...prefixes] = positional;
 const withData = args.includes("--data");
 const widthsWanted = flag("widths", "390,1440").split(",").map(Number);
+// Takes run at once, each in its own browser; one job keeps frame timing exact on a busy machine.
+const JOBS = Number(flag("jobs", "3"));
 // One folder per run, so runs at once keep their own raw videos and frames.
-const SCRATCH = join(process.env.MOTION_SCRATCH ?? join(tmpdir(), "ui-pass-motion"), `${set}-${process.pid}`);
+const SCRATCH = join(tmpdir(), "ui-pass-motion", `${set}-${process.pid}`);
 
 const picked = MOMENTS.filter((m) => prefixes.length === 0 || prefixes.some((p) => m.id.startsWith(p)));
 if (args.includes("--list")) {
@@ -47,19 +47,6 @@ const SIZES = {
 const STILL_SCALE = { 390: 2, 1440: 1 };
 const STRIP = { 390: { frame: 195, cols: 10 }, 1440: { frame: 360, cols: 8 } };
 
-async function newContext(browser, width, m, { video, reduce }) {
-  const size = SIZES[width];
-  const ctx = await browser.newContext({
-    ...size,
-    deviceScaleFactor: video ? 1 : STILL_SCALE[width],
-    reducedMotion: reduce ? "reduce" : "no-preference",
-    permissions: ["clipboard-read", "clipboard-write"],
-    ...(video ? { recordVideo: { dir: join(SCRATCH, "raw"), size: size.viewport } } : {}),
-  });
-  await config.prepare?.(ctx, m);
-  return ctx;
-}
-
 const FLASH_ON = () => {
   const d = document.createElement("div");
   d.id = "__flash";
@@ -69,16 +56,22 @@ const FLASH_ON = () => {
 const FLASH_OFF = () => document.getElementById("__flash")?.remove();
 
 /** Runs one moment at one width. "video" keeps a video; "reduced" ends with a reduced-motion still. */
-async function take(browser, m, width, mode) {
-  const reduce = mode === "reduced";
-  const ctx = await newContext(browser, width, m, { video: mode === "video", reduce });
+async function take(browser, m, width, mode, scratch) {
+  const recording = mode === "video";
+  const ctx = await browser.newContext({
+    ...SIZES[width],
+    deviceScaleFactor: recording ? 1 : STILL_SCALE[width],
+    reducedMotion: mode === "reduced" ? "reduce" : "no-preference",
+    permissions: ["clipboard-read", "clipboard-write"],
+    ...(recording ? { recordVideo: { dir: join(scratch, "raw"), size: SIZES[width].viewport } } : {}),
+  });
+  await config.prepare?.(ctx, m);
   const page = await ctx.newPage();
   const problems = [];
   page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
   page.on("console", (c) => c.type() === "error" && !/ERR_FAILED/.test(c.text()) && problems.push(`console: ${c.text().slice(0, 200)}`));
   const touch = width === 390;
   const h = {
-    width,
     touch,
     base: config.base,
     wait,
@@ -89,13 +82,12 @@ async function take(browser, m, width, mode) {
       await page.evaluate(FLASH_OFF);
     },
   };
-  let video;
+  const video = page.video();
   try {
-    video = page.video();
     if (m.account) await config.signIn(page, m.account);
     await m.run(page, h);
     await wait(300);
-    if (mode === "reduced") {
+    if (!recording) {
       const cdp = await ctx.newCDPSession(page);
       // No clip: a clip is in document coordinates, so a scrolled page would shoot its top. This is the viewport.
       const { data } = await cdp.send("Page.captureScreenshot", { format: "png" });
@@ -129,18 +121,21 @@ function encode(raw, cut, dest) {
   ]);
 }
 
-function strip(video, width, dest) {
-  const dir = join(SCRATCH, "frames");
-  rmSync(dir, { recursive: true, force: true });
+function strip(video, width, dest, scratch) {
+  const dir = join(scratch, "frames");
   mkdirSync(dir, { recursive: true });
   const { frame, cols } = STRIP[width];
   execFileSync("ffmpeg", ["-v", "error", "-i", video, "-vf", `fps=10,scale=${frame}:-1`, join(dir, "f%03d.png")]);
   const files = readdirSync(dir).sort();
-  const args = ["montage"];
-  files.forEach((f, i) => args.push("-label", `${i * 100} ms`, join(dir, f)));
-  args.push("-tile", `${cols}x`, "-geometry", `${frame}x+3+3`, "-pointsize", "14", "-background", "#222", "-fill", "white", dest);
-  execFileSync("magick", args);
-  rmSync(dir, { recursive: true, force: true });
+  // Frames are named by their time and passed as a list file: one argument per frame passes Windows' command-line limit.
+  const named = files.map((f, i) => {
+    const to = join(dir, `${i * 100} ms.png`);
+    renameSync(join(dir, f), to);
+    return to;
+  });
+  const list = join(dir, "frames.txt");
+  writeFileSync(list, named.map((f) => `"${f.replaceAll("\\", "/")}"`).join("\n"));
+  execFileSync("magick", ["montage", "-label", "%t", `@${list}`, "-tile", `${cols}x`, "-geometry", `${frame}x+3+3`, "-pointsize", "14", "-background", "#222", "-fill", "white", dest]);
   return files.length;
 }
 
@@ -149,7 +144,6 @@ const report = existsSync(reportFile) ? JSON.parse(readFileSync(reportFile, "utf
 const skipDone = args.includes("--skip-done");
 const done = (m, width) => skipDone && report.some((r) => r.ok && r.id === m.id && r.width === width);
 const ran = [];
-// Touch widths get a browser whose pointer is coarse, since a context's touch emulation alone keeps a fine pointer.
 const launch = (width) => chromium.launch({ channel: "chrome", args: width === 390 ? TOUCH_ARGS : [] });
 // A hung take (it happened once with no error) must not stall the set.
 const within = (promise, ms) => {
@@ -157,53 +151,62 @@ const within = (promise, ms) => {
   const hung = new Promise((_, reject) => (timer = setTimeout(() => reject(new Error(`take hung for ${ms / 1000} s`)), ms)));
   return Promise.race([promise, hung]).finally(() => clearTimeout(timer));
 };
-for (const width of widthsWanted) {
-  const todo = picked.filter((m) => m.widths.includes(width) && (withData || !m.data) && !done(m, width));
-  if (!todo.length) continue;
-  let browser = await launch(width);
+/** Records one moment at one width into the set, keeping its own raw video and frames apart from other takes. */
+async function record(browser, m, width) {
+  const row = { id: m.id, width, data: !!m.data };
+  const scratch = join(SCRATCH, `${m.id}-${width}`);
+  console.log(`${m.id}@${width}`);
   try {
-    for (const m of todo) {
-      const row = { id: m.id, width, data: !!m.data };
-      console.log(`${m.id}@${width}`);
-      try {
-        rmSync(join(SCRATCH, "raw"), { recursive: true, force: true });
-        const t0 = Date.now();
-        const { video, problems } = await within(take(browser, m, width, "video"), 150_000);
-        const raw = join(SCRATCH, `raw-${m.id}-${width}.webm`);
-        await video.saveAs(raw);
-        const cut = flashEnd(raw);
-        if (cut === null) {
-          copyFileSync(raw, join(out, `${m.id}@${width}.noflash.webm`));
-          throw new Error("no flash found in the video");
-        }
-        const dest = join(out, `${m.id}@${width}.webm`);
-        encode(raw, cut, dest);
-        row.frames = strip(dest, width, join(out, `${m.id}@${width}.strip.png`));
-        rmSync(raw, { force: true });
-        row.takeMs = Date.now() - t0;
-        row.problems = problems;
-        const still = await within(take(browser, m, width, "reduced"), 150_000);
-        row.problems.push(...still.problems.map((p) => `reduced ${p}`));
-        row.ok = true;
-      } catch (e) {
-        row.ok = false;
-        row.error = String(e.message ?? e).split("\n")[0];
-        console.log("  FAILED", row.error);
-        process.exitCode = 1;
-        if (/hung/.test(row.error)) {
-          await browser.close().catch(() => {});
-          browser = await launch(width);
+    const { video, problems } = await within(take(browser, m, width, "video", scratch), 150_000);
+    const raw = join(scratch, "take.webm");
+    await video.saveAs(raw);
+    const cut = flashEnd(raw);
+    if (cut === null) {
+      copyFileSync(raw, join(out, `${m.id}@${width}.noflash.webm`));
+      throw new Error("no flash found in the video");
+    }
+    const dest = join(out, `${m.id}@${width}.webm`);
+    encode(raw, cut, dest);
+    row.frames = strip(dest, width, join(out, `${m.id}@${width}.strip.png`), scratch);
+    row.problems = problems;
+    const still = await within(take(browser, m, width, "reduced", scratch), 150_000);
+    row.problems.push(...still.problems.map((p) => `reduced ${p}`));
+    row.ok = true;
+  } catch (e) {
+    row.ok = false;
+    row.error = String(e.message ?? e).split("\n")[0];
+    console.log(`  FAILED ${m.id}@${width}`, row.error);
+    process.exitCode = 1;
+  }
+  rmSync(scratch, { recursive: true, force: true });
+  ran.push(row);
+  const at = report.findIndex((r) => r.id === m.id && r.width === width);
+  if (at === -1) report.push(row);
+  else report[at] = row;
+  writeFileSync(reportFile, JSON.stringify(report, null, 2));
+  return row;
+}
+
+const queue = widthsWanted.flatMap((width) =>
+  picked.filter((m) => m.widths.includes(width) && (withData || !m.data) && !done(m, width)).map((m) => ({ m, width })),
+);
+// Each worker keeps one browser per width and replaces it after a hung take.
+await Promise.all(
+  Array.from({ length: Math.min(JOBS, queue.length) }, async () => {
+    const browsers = new Map();
+    try {
+      for (let job = queue.shift(); job; job = queue.shift()) {
+        if (!browsers.has(job.width)) browsers.set(job.width, await launch(job.width));
+        const row = await record(browsers.get(job.width), job.m, job.width);
+        if (!row.ok && /hung/.test(row.error)) {
+          await browsers.get(job.width).close().catch(() => {});
+          browsers.delete(job.width);
         }
       }
-      ran.push(row);
-      const at = report.findIndex((r) => r.id === m.id && r.width === width);
-      if (at === -1) report.push(row);
-      else report[at] = row;
-      writeFileSync(reportFile, JSON.stringify(report, null, 2));
+    } finally {
+      await Promise.all([...browsers.values()].map((b) => b.close().catch(() => {})));
     }
-  } finally {
-    await browser.close().catch(() => {});
-  }
-}
+  }),
+);
 rmSync(SCRATCH, { recursive: true, force: true });
 console.log(ran.map((r) => `${r.ok ? "ok  " : "FAIL"} ${r.id}@${r.width}${r.ok ? ` ${r.frames} frames` : ` ${r.error}`}`).join("\n"));

@@ -5,8 +5,6 @@ description: Use when sending work to the codex CLI - second opinions, code revi
 
 # Codex CLI usage
 
-Checked on codex-cli 0.166; `codex exec --help` covers newer versions and the rest.
-
 Use codex wherever a different model family or a separate context helps, giving it the material, not your conclusion. It reads images with `-i`, generates images, and reads PDFs and office files when a document plugin is installed (`codex plugin list`). Runs take 15 seconds to several minutes, so batch questions into one run.
 
 ## How
@@ -44,4 +42,4 @@ Plugins from `~/.codex/config.toml` load headless; name a skill in the prompt to
 
 ## From Claude workflows and subagents
 
-Their `model` takes only Claude models, so spawn a thin Claude wrapper that runs codex in a background shell or with a multi-minute timeout (the 2-minute default kills it before `-o` is written), waits for it to exit and returns the `-o` file. err.log stays flat while codex works, so it shows no progress. Label the wrapper `gpt:...` so the workflow UI shows the real worker.
+Their `model` takes only Claude models, so spawn Haiku that runs codex in a background shell or with a multi-minute timeout (the 2-minute default kills it before `-o` is written), waits for it to exit and returns the `-o` file. err.log stays flat while codex works, so it shows no progress. Label the wrapper `gpt:...` so the workflow UI shows the real worker.

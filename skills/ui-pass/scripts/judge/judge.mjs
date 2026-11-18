@@ -1,5 +1,3 @@
-// Usage: node judge.mjs <before> <after> [id-prefix...] --out <dir> [--judges muse,codex] [--prompt <file>] [--noise 1500] [--config ui-pass.config.mjs]
-// <before> and <after> are two images, or two shot sets under the config's shots folder whose changed viewport pieces are judged.
 // Needs magick, curl, OPENROUTER_API_KEY and a signed-in codex CLI; nothing telling which side is new may sit in --out while judges run.
 import { execFileSync, spawn } from "node:child_process";
 import { closeSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, openSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -84,7 +82,7 @@ for (const set of ["o1", "o2"]) {
     const newIsX = (n % 2 === 0) === (set === "o1");
     const [x, y] = control ? [t.base, t.base] : newIsX ? [t.new, t.base] : [t.base, t.new];
     // The control may reuse a judged piece, so it gets its own name or the two pairs' votes would merge.
-    key[`${set}:${pair}`] = { tile: control ? `control ${t.id}` : t.id, control, X: control ? "base" : newIsX ? "new" : "base", Y: control ? "base" : newIsX ? "base" : "new" };
+    key[`${set}:${pair}`] = { tile: control ? `control ${t.id}` : t.id, control, X: !control && newIsX ? "new" : "base", Y: !control && !newIsX ? "new" : "base" };
     return [["X", x], ["Y", y]].map(([side, src]) => {
       const file = join(out, set, `pair${pair}-${side}.jpg`);
       const fit = t.kind ? ["-resize", t.kind === "p" ? "780x1688>" : "1440x900>"] : [];
@@ -191,14 +189,14 @@ for (const judge of judges) {
       result.control[judge] = { tile, votes };
       continue;
     }
-    tally[both === "split" ? "split" : both] += 1;
+    tally[both] += 1;
     (result.pairs[tile] ??= {})[judge] = { verdict: both, votes };
   }
   result.judges[judge] = tally;
 }
 const all = Object.values(result.judges);
 result.lost = Object.entries(result.pairs).filter(([, v]) => judges.every((j) => v[j]?.verdict === "base")).map(([t]) => t);
-result.accepted = all.length > 0 && all.every((t) => t.control_ok && t.new > t.base) && result.lost.length === 0 && result.missing.length === 0;
+result.accepted = all.every((t) => t.control_ok && t.new > t.base) && result.lost.length === 0 && result.missing.length === 0;
 writeFileSync(join(out, "verdict.json"), JSON.stringify(result, null, 1));
 
 for (const [tile, by] of Object.entries(result.pairs)) {

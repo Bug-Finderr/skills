@@ -1,6 +1,4 @@
 // Before/after picture per screen for the tracker and the user, never critics: before row on top, after row below.
-// Usage: node pairs.mjs <beforeSet> <afterSet> [idPrefix...] [--config ui-pass.config.mjs]
-//        -> <shots>/<$PAIRS or pairs>/<id>.webp, ids on stdout
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";

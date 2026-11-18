@@ -4,14 +4,12 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 // Absolute path of this skill's scripts/vlib.mjs; the skill tells you where it lives.
 const VLIB = "<skill-dir>/scripts/vlib.mjs";
-const { consoleErrors, finishVideo, launch, openTab, plainPage, recordedPage, say, signIn } = await import(
+const { consoleErrors, finishVideo, launch, plainPage, recordedPage, say } = await import(
   pathToFileURL(VLIB).href
 );
 
 const OUT = path.dirname(fileURLToPath(import.meta.url));
 const NAME = "flow-name";
-// Read the test password from the project's seed or fixture file; never paste it here.
-const password = process.env.TEST_PASSWORD;
 
 const browser = await launch();
 
@@ -21,8 +19,7 @@ await setup.context().close();
 
 const page = await recordedPage(browser, OUT, NAME);
 try {
-  await signIn(page, { email: "admin@example.test", password, next: "/staff" });
-  await openTab(page, "People");
+  // Sign in and open the screen the way the project's seed file or docs say.
   await say(page, "What the viewer is looking at, in plain words.", 3000);
 } finally {
   await finishVideo(page, OUT, NAME);

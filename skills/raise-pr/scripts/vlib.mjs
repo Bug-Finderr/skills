@@ -9,7 +9,7 @@ const CACHE = path.join(os.homedir(), ".bun/install/cache");
 const core = fs
   .readdirSync(CACHE)
   .filter((dir) => dir.startsWith("playwright-core@"))
-  .sort()
+  .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
   .at(-1);
 const { chromium } = await import(pathToFileURL(path.join(CACHE, core, "index.mjs")).href);
 
@@ -71,44 +71,10 @@ export async function settle(page, extra = 900) {
   await page.waitForTimeout(extra);
 }
 
-export async function go(page, url, caption) {
-  await page.goto(BASE + url, { waitUntil: "domcontentloaded" });
-  await settle(page);
-  if (caption) await say(page, caption);
-}
-
-/**
- * Email and password sign-in with a seeded test account on a local or staging build. Pass selectors for
- * projects whose /auth page differs from the defaults. Read the password from the project's seed file, never hardcode it.
- */
-export async function signIn(
-  page,
-  { email, password, next = "/dashboard", path: authPath = "/auth", emailSel = "#auth-email", passwordSel = "#auth-password", submit = "Sign in" },
-) {
-  // The dev server's lookups of the backend fail now and then; a reload recovers.
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    await page.goto(`${BASE}${authPath}?next=${encodeURIComponent(next)}`, { waitUntil: "domcontentloaded" });
-    await settle(page, 600);
-    if (await page.locator(emailSel).isVisible().catch(() => false)) break;
-  }
-  await page.fill(emailSel, email);
-  await page.fill(passwordSel, password);
-  await page.getByRole("button", { name: submit, exact: true }).click();
-  await page.waitForURL((url) => url.pathname === next.split("?")[0], { timeout: 30000 });
-  await settle(page, 1200);
-}
-
-export async function openTab(page, name) {
-  await page.getByRole("tab", { name, exact: true }).click();
-  await page.waitForTimeout(800);
-}
-
 /** Closes the recording and saves it as `<outDir>/<name>.webm`. */
 export async function finishVideo(page, outDir, name) {
   const video = page.video();
   await page.context().close();
-  if (video) {
-    fs.renameSync(await video.path(), path.join(outDir, `${name}.webm`));
-    fs.rmSync(path.join(outDir, name), { recursive: true, force: true });
-  }
+  fs.renameSync(await video.path(), path.join(outDir, `${name}.webm`));
+  fs.rmSync(path.join(outDir, name), { recursive: true, force: true });
 }

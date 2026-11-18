@@ -3,7 +3,7 @@
 Script paths are relative to this skill's folder; run them from the project root with Node, not Bun.
 
 ## Install
-- Node and Google Chrome; the scripts launch Chrome itself, so no Playwright browser download is needed.
+- Node and Google Chrome; no Playwright browser download is needed.
 - `playwright` and `@axe-core/playwright` in the folder that holds the config file or any folder above it; a git-excluded tools folder works.
 - ImageMagick 7 (`magick`), ffmpeg with ffprobe and libvpx-vp9, curl, and Playwright's own encoder for motion clips (`npx playwright install ffmpeg`).
 - `OPENROUTER_API_KEY` for the Muse Wonder judge, and a signed-in Codex CLI (a native binary on PATH) for the gpt judge.
@@ -29,13 +29,13 @@ export default {
 ## Scripts
 - `scripts/ui-check.mjs [id-prefix...] [--out after] [--widths 390,1440] [--all-widths] [--reduce] [--scale 2] [--base url] [--no-shots] [--env name] [--resume] [--exact] [--keep-png]`: shots and gates per screen; `<shots>/<out>/report.json` is saved after every shot, and a failed shot leaves `<id>@<w>.fail.png`. `--resume` skips every shot that loaded, gate failures included, so retake a fixed screen by its id.
 - `scripts/diff.sh <before-set-dir> <after-set-dir>`: each before shot is same, a changed-pixel count (2% fuzz), a size change or missing from the after set; writes a TSV in the after set.
-- `scripts/pairs.mjs <before> <after> [id-prefix...]`: one before-over-after picture per screen for the tracker and the user, never for critics, since position gives the answer away. It skips pictures that exist, so clear its folder after a reshoot.
+- `scripts/pairs.mjs <before> <after> [id-prefix...]`: one before-over-after picture per screen for the tracker and the user, never for critics. Pictures go to `<shots>/pairs/`, or `<shots>/$PAIRS/` when that is set. It skips pictures that exist, so clear its folder after a reshoot.
 - `scripts/judge/judge.mjs <before> <after> [id-prefix...] --out <dir> [--judges muse,codex] [--prompt file] [--noise 1500]`: two images or two shot sets.
   - Sets are cut into viewport pieces and only the 6 phone and 4 wider pieces that changed most are judged; the rest are listed as `dropped` in `tiles.json`. Content pushed down shifts every piece below it, so crop such screens to the changed element.
   - A judge that never calls the control the same, or skips a pair or answers it with anything but one X, Y or same, makes the run unaccepted: rerun it once, then drop it for that round and say so.
   - `--judges muse` first, then `codex` only on what Muse accepted; Muse costs about $0.12 to $0.14 per judged piece with its control.
-- `scripts/picks/make.mjs <picks.json> [outDir]`: builds `index.html`, `img/`, `clips/` and `files.json`. Build inside the project or the session scratchpad, since publish sources must live there.
-- `scripts/motion/record.mjs <set> [moment-prefix...] [--moments ui-pass.moments.mjs] [--dir shots] [--widths 390,1440] [--data] [--skip-done] [--list]`: each moment gives a clip, a strip every 100 ms and a reduced-motion end still. Widths 390 and 1440 only.
+- `scripts/picks/make.mjs <picks.json> [outDir]`: builds `index.html`, `img/`, `clips/` and `files.json`. Build inside the project or the session scratchpad.
+- `scripts/motion/record.mjs <set> [moment-prefix...] [--moments ui-pass.moments.mjs] [--dir shots] [--widths 390,1440] [--data] [--skip-done] [--list] [--jobs 3]`: each moment gives a clip, a strip every 100 ms and a reduced-motion end still. Widths 390 and 1440 only. Takes run `--jobs` at a time, each in its own browser; `--jobs 1` when frame timing must be exact on a busy machine. `--skip-done` reruns only the takes `report.json` marks failed.
 - `scripts/motion/compare.mjs [a=before] [b=after]`: stacks a's strip over b's per moment in `<shots>/<a>-vs-<b>/`.
 - Moments file: default export, an array of `{ id, widths: [390, 1440], account?, route, data?, run(page, h) }`; `run` opens `h.base + route` itself, calls `h.start()` where the clip begins, then triggers and waits with fixed waits. `data: true` moments save or pay, so they run only with `--data`.
 
