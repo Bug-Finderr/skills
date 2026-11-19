@@ -35,11 +35,21 @@ const showActions = (touch) => ({
 // Playwright shows the dot before each action; this ripples out from the spot when the press lands.
 // Runs inside the page, so it gets the dot's style as an argument.
 function ripple(look) {
+  // The ripple and Playwright's marker layer are popovers, so an app's own ::backdrop rules would dim the
+  // whole screen behind them; the marker layer stays open from the first action to the end of the video.
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync("[data-tap-ripple]::backdrop,x-pw-glass::backdrop{display:none!important}");
+  const keep = () =>
+    document.adoptedStyleSheets.includes(sheet) ||
+    (document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]);
+  keep();
   addEventListener(
     "pointerdown",
     (e) => {
+      keep();
       // A popover sits in the top layer, so the ripple also shows above an open <dialog>.
       const el = Object.assign(document.createElement("div"), { popover: "manual" });
+      el.dataset.tapRipple = "";
       el.style.cssText =
         `position:fixed;inset:auto;margin:0;padding:0;overflow:visible;left:${e.clientX - 30}px;top:${e.clientY - 30}px;` +
         `${look};pointer-events:none`;
