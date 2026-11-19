@@ -38,14 +38,18 @@ function ripple(look) {
   addEventListener(
     "pointerdown",
     (e) => {
-      const el = document.createElement("div");
-      el.style.cssText = `position:fixed;left:${e.clientX - 30}px;top:${e.clientY - 30}px;${look};pointer-events:none;z-index:2147483647`;
+      // A popover sits in the top layer, so the ripple also shows above an open <dialog>.
+      const el = Object.assign(document.createElement("div"), { popover: "manual" });
+      el.style.cssText =
+        `position:fixed;inset:auto;margin:0;padding:0;overflow:visible;left:${e.clientX - 30}px;top:${e.clientY - 30}px;` +
+        `${look};pointer-events:none`;
       document.documentElement.append(el);
+      el.showPopover();
       const grow = el.animate(
         { transform: ["scale(.3)", "scale(1.4)"], opacity: [1, 0] },
         { duration: 600, easing: "ease-out" },
       );
-      grow.finished.then(() => el.remove());
+      grow.onfinish = grow.oncancel = () => el.remove();
     },
     true,
   );
