@@ -20,16 +20,19 @@ export const PHONE = { width: 390, height: 844 };
 const isPhone = (viewport) => viewport.width < 768;
 const device = (viewport) => ({ viewport, hasTouch: isPhone(viewport), isMobile: isPhone(viewport) });
 
-// Tap marks look like a phone's own "show taps" dot, grey with a white edge, so no one reads them as app UI.
-const dot = (size) =>
-  `width:${size}px;height:${size}px;border-radius:50%;border:2px solid rgba(255,255,255,.9);` +
-  "box-shadow:0 0 0 1px rgba(60,60,60,.5);background:rgba(60,60,60,.45);box-sizing:border-box";
+// Tap marks default to magenta, a colour apps rarely use for their own states, so no one reads them as app UI.
+// Pass any CSS colour instead when the app uses magenta or it gets lost on the screen; the white edge keeps the
+// mark visible on dark pages.
+export const TAP_COLOR = "#ec008c";
+const dot = (size, color) =>
+  `width:${size}px;height:${size}px;border-radius:50%;border:3px solid ${color};box-shadow:0 0 0 1.5px #fff;` +
+  `background:color-mix(in srgb, ${color} 35%, transparent);box-sizing:border-box`;
 
 // Captions from say() explain the steps, so Playwright's own action titles stay hidden.
-const showActions = (touch) => ({
+const showActions = (touch, color) => ({
   duration: 800,
   cursor: touch ? "none" : "pointer",
-  style: { point: dot(touch ? 40 : 28), title: "display:none" },
+  style: { point: dot(touch ? 40 : 28, color), title: "display:none" },
 });
 
 // Playwright shows the dot before each action; this ripples out from the spot when the press lands.
@@ -72,14 +75,14 @@ export function launch() {
 }
 
 /** A page whose context records a video into `<outDir>/<name>/` until `finishVideo`. */
-export async function recordedPage(browser, outDir, name, viewport = DESKTOP) {
+export async function recordedPage(browser, outDir, name, viewport = DESKTOP, color = TAP_COLOR) {
   const dir = path.join(outDir, name);
   fs.rmSync(dir, { recursive: true, force: true });
   const context = await browser.newContext({
     ...device(viewport),
-    recordVideo: { dir, size: viewport, showActions: showActions(isPhone(viewport)) },
+    recordVideo: { dir, size: viewport, showActions: showActions(isPhone(viewport), color) },
   });
-  await context.addInitScript(ripple, dot(60));
+  await context.addInitScript(ripple, dot(60, color));
   const page = await context.newPage();
   page.setDefaultTimeout(25000);
   page.on("pageerror", (e) => consoleErrors.push(`[${name}] ${String(e).slice(0, 300)}`));
@@ -115,11 +118,11 @@ export async function say(page, text, ms = 2200) {
 }
 
 /** Puts the video's tap dot where a still's tap or click lands. Dispose the result to remove it. */
-export async function mark(page, locator) {
+export async function mark(page, locator, color = TAP_COLOR) {
   const b = await locator.boundingBox();
   const r = isPhone(page.viewportSize()) ? 20 : 14;
   return page.screencast.showOverlay(
-    `<div style="position:absolute;left:${b.x + b.width / 2 - r}px;top:${b.y + b.height / 2 - r}px;${dot(2 * r)}"></div>`,
+    `<div style="position:absolute;left:${b.x + b.width / 2 - r}px;top:${b.y + b.height / 2 - r}px;${dot(2 * r, color)}"></div>`,
   );
 }
 
