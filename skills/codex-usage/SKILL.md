@@ -13,15 +13,15 @@ Run from bash, not `cmd /c`, and always pass the model and reasoning effort:
 
 ```bash
 codex exec --skip-git-repo-check -C "/path/to/workdir" -m <model> -c model_reasoning_effort=high \
-  -o answer-<sha or time>.md "prompt" -i screenshot.png </dev/null 2>err.log
+  -o answer-<sha>-<time>.md "prompt" -i screenshot.png </dev/null 2>err.log
 ```
 
 - Without `</dev/null`, codex hangs on "Reading additional input from stdin...".
 - `-i` takes several values, so a prompt right after it is read as an image: put the prompt first, or use `-i img.png -- "prompt"`.
-- `-o` holds the answer and is written only when the run ends. Give every run its own file, named after the commit or the time, and read it only after codex exits: a reused name hands back an earlier answer when a run fails or is read early.
-- Start codex with the Bash tool's `run_in_background`, never inside `timeout`, which kills it mid-run. The exit notice is the only sign it is done; no sleep or polling loops.
+- `-o` holds the answer and is written only when the run ends. Give every run its own file, named after the commit and the time, and read it only after codex exits: a reused name hands back an earlier answer when a run fails or is read early.
+- When you run codex yourself, start it with the Bash tool's `run_in_background`, never inside `timeout`, which kills it mid-run. The exit notice is the only sign it is done; no sleep or polling loops.
 - A typo in reasoning effort fails only after about a minute (server 400).
-- Code review, from inside the repo: `codex exec review --uncommitted` (or `--base main`, or `--commit <sha>`) `-m <model> -c model_reasoning_effort=high -o review-<sha>.md </dev/null`. These take no prompt, and review has no `-C`.
+- Code review, from inside the repo: `codex exec review --uncommitted` (or `--base main`, or `--commit <sha>`) `-m <model> -c model_reasoning_effort=high -o review-<sha>-<time>.md </dev/null`. These take no prompt, and review has no `-C`.
 - A review that needs a brief, such as a PR with its text, is a plain `codex exec -s read-only` run whose prompt names the head commit and the git commands that show the change (`git diff main...<sha>`). Read-only has no network, so save the PR text to a file first (`gh pr view <n> --json title,body`) and name that file in the prompt.
 
 ## Plugins
@@ -44,4 +44,4 @@ Plugins from `~/.codex/config.toml` load headless; name a skill in the prompt to
 
 ## From Claude workflows and subagents
 
-Their `model` takes only Claude models, so spawn Haiku that starts codex as above, waits for its exit notice and returns its own `-o` file. Label the wrapper `gpt:...` so the workflow UI shows the real worker.
+Their `model` takes only Claude models, so spawn Haiku that runs codex in the foreground with the Bash tool's 10-minute timeout, since a subagent's turn ends before a background exit notice arrives, then returns its own `-o` file. Label the wrapper `gpt:...` so the workflow UI shows the real worker.
