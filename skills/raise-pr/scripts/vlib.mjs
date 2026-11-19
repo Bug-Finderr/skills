@@ -23,7 +23,7 @@ const device = (viewport) => ({ viewport, hasTouch: isPhone(viewport), isMobile:
 // Tap marks default to magenta, a colour apps rarely use for their own states, so no one reads them as app UI.
 // Pass any CSS colour instead when the app uses magenta or it gets lost on the screen; the white edge keeps the
 // mark visible on dark pages.
-export const TAP_COLOR = "#ec008c";
+const TAP_COLOR = "#ec008c";
 const dot = (size, color) =>
   `width:${size}px;height:${size}px;border-radius:50%;border:3px solid ${color};box-shadow:0 0 0 1.5px #fff;` +
   `background:color-mix(in srgb, ${color} 35%, transparent);box-sizing:border-box`;
@@ -35,21 +35,25 @@ const showActions = (touch, color) => ({
   style: { point: dot(touch ? 40 : 28, color), title: "display:none" },
 });
 
-// Playwright shows the dot before each action; this ripples out from the spot when the press lands.
-// Runs inside the page, so it gets the dot's style as an argument.
-function ripple(look) {
-  // The ripple and Playwright's marker layer are popovers, so an app's own ::backdrop rules would dim the
-  // whole screen behind them; the marker layer stays open from the first action to the end of the video.
+// Runs inside the page. The ripple and Playwright's marker layer are popovers, so an app's own ::backdrop
+// rules would dim the whole screen behind them; the marker layer stays open from the first mark until the
+// page closes. Re-added on each press in case the app replaces the page's adopted stylesheets.
+function hideMarkerBackdrops() {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync("[data-tap-ripple]::backdrop,x-pw-glass::backdrop{display:none!important}");
   const keep = () =>
     document.adoptedStyleSheets.includes(sheet) ||
     (document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]);
   keep();
+  addEventListener("pointerdown", keep, true);
+}
+
+// Playwright shows the dot before each action; this ripples out from the spot when the press lands.
+// Runs inside the page, so it gets the dot's style as an argument.
+function ripple(look) {
   addEventListener(
     "pointerdown",
     (e) => {
-      keep();
       // A popover sits in the top layer, so the ripple also shows above an open <dialog>.
       const el = Object.assign(document.createElement("div"), { popover: "manual" });
       el.dataset.tapRipple = "";
@@ -82,6 +86,7 @@ export async function recordedPage(browser, outDir, name, viewport = DESKTOP, co
     ...device(viewport),
     recordVideo: { dir, size: viewport, showActions: showActions(isPhone(viewport), color) },
   });
+  await context.addInitScript(hideMarkerBackdrops);
   await context.addInitScript(ripple, dot(60, color));
   const page = await context.newPage();
   page.setDefaultTimeout(25000);
@@ -121,6 +126,7 @@ export async function say(page, text, ms = 2200) {
 export async function mark(page, locator, color = TAP_COLOR) {
   const b = await locator.boundingBox();
   const r = isPhone(page.viewportSize()) ? 20 : 14;
+  await page.evaluate(hideMarkerBackdrops);
   return page.screencast.showOverlay(
     `<div style="position:absolute;left:${b.x + b.width / 2 - r}px;top:${b.y + b.height / 2 - r}px;${dot(2 * r, color)}"></div>`,
   );
