@@ -4,7 +4,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 // Absolute path of this skill's scripts/vlib.mjs; the skill tells you where it lives.
 const VLIB = "<skill-dir>/scripts/vlib.mjs";
-const { consoleErrors, finishVideo, launch, plainPage, recordedPage, say } = await import(
+const { consoleErrors, finishVideo, launch, plainPage, PHONE, recordedPage, say } = await import(
   pathToFileURL(VLIB).href
 );
 

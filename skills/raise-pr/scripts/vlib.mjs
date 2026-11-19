@@ -84,9 +84,10 @@ export async function say(page, text, ms = 2200) {
 /** Marks where a still's tap or click lands, in the look videos use. Dispose the result to remove it. */
 export async function mark(page, locator) {
   const b = await locator.boundingBox();
+  const r = isPhone(page.viewportSize()) ? 22 : 15;
   return page.screencast.showOverlay(
     `<div style="position:absolute;left:${b.x}px;top:${b.y}px;width:${b.width}px;height:${b.height}px;${BOX}"></div>` +
-      `<div style="position:absolute;left:${b.x + b.width / 2 - 15}px;top:${b.y + b.height / 2 - 15}px;${ring(30)}"></div>`,
+      `<div style="position:absolute;left:${b.x + b.width / 2 - r}px;top:${b.y + b.height / 2 - r}px;${ring(2 * r)}"></div>`,
   );
 }
 
