@@ -15,6 +15,23 @@ const { chromium } = await import(pathToFileURL(path.join(CACHE, core, "index.mj
 
 export const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 export const DESKTOP = { width: 1280, height: 800 };
+// Phone pages get touch input: drive them with locator.tap(), not click().
+export const PHONE = { width: 390, height: 844 };
+const isPhone = (viewport) => viewport.width < 768;
+const device = (viewport) => ({ viewport, hasTouch: isPhone(viewport), isMobile: isPhone(viewport) });
+
+// One look for tap marks in videos and stills: a ring where the pointer lands and a box around the target.
+const RED = "rgba(255,64,64,.95)";
+const ring = (size) =>
+  `width:${size}px;height:${size}px;border-radius:50%;border:3px solid ${RED};background:rgba(255,64,64,.25);box-sizing:border-box`;
+const BOX = `outline:3px solid ${RED};outline-offset:2px;border-radius:6px`;
+
+// Captions from say() explain the steps, so Playwright's own action titles stay hidden.
+const showActions = (touch) => ({
+  duration: 800,
+  cursor: touch ? "none" : "pointer",
+  style: { point: ring(touch ? 44 : 30), highlight: BOX, title: "display:none" },
+});
 
 export const consoleErrors = [];
 
@@ -26,7 +43,10 @@ export function launch() {
 export async function recordedPage(browser, outDir, name, viewport = DESKTOP) {
   const dir = path.join(outDir, name);
   fs.rmSync(dir, { recursive: true, force: true });
-  const context = await browser.newContext({ viewport, recordVideo: { dir, size: viewport } });
+  const context = await browser.newContext({
+    ...device(viewport),
+    recordVideo: { dir, size: viewport, showActions: showActions(isPhone(viewport)) },
+  });
   const page = await context.newPage();
   page.setDefaultTimeout(25000);
   page.on("pageerror", (e) => consoleErrors.push(`[${name}] ${String(e).slice(0, 300)}`));
@@ -36,7 +56,7 @@ export async function recordedPage(browser, outDir, name, viewport = DESKTOP) {
 
 /** A page without video, for setup and cleanup steps that should not be in the recording. */
 export async function plainPage(browser, viewport = DESKTOP) {
-  const page = await (await browser.newContext({ viewport })).newPage();
+  const page = await (await browser.newContext(device(viewport))).newPage();
   page.setDefaultTimeout(25000);
   return page;
 }
@@ -59,6 +79,15 @@ export async function say(page, text, ms = 2200) {
     }, text)
     .catch(() => {});
   await page.waitForTimeout(ms);
+}
+
+/** Marks where a still's tap or click lands, in the look videos use. Dispose the result to remove it. */
+export async function mark(page, locator) {
+  const b = await locator.boundingBox();
+  return page.screencast.showOverlay(
+    `<div style="position:absolute;left:${b.x}px;top:${b.y}px;width:${b.width}px;height:${b.height}px;${BOX}"></div>` +
+      `<div style="position:absolute;left:${b.x + b.width / 2 - 15}px;top:${b.y + b.height / 2 - 15}px;${ring(30)}"></div>`,
+  );
 }
 
 export async function settle(page, extra = 900) {

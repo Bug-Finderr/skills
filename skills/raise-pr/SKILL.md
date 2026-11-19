@@ -26,10 +26,11 @@ For a reader new to the codebase. Title says the effect; open with what breaks w
 
 ## Visuals (user-facing changes only)
 - A changed look gets before and after stills: base against branch, same data, phone and laptop width, labelled and cropped to the change.
+- A still that shows where to tap or click marks the spot with `mark(page, locator)` from `scripts/vlib.mjs`.
 - A new or changed flow (steps, timing, motion) also gets a video; a look alone doesn't need one.
 - Attach either: put `![](./file)` where it belongs in the body file; `gh pr edit <n> --body-file body.md --attach file` uploads it and swaps in the link, and `--attach` repeats for several files.
 
-Videos: `scripts/vlib.mjs` with Node, not Bun; start from `scripts/example-flow.mjs`. Local dev, seeded accounts signed in the way the seed file or project docs say, setup outside the recording, one caption per step, 20 to 60 s, under 10 MB, check with `scripts/sheet.mjs`, undo test data, re-record when a step or layout changes but not for a copy edit.
+Videos: `scripts/vlib.mjs` with Node, not Bun; start from `scripts/example-flow.mjs`. Every click and tap shows a ring and a box on its own; phone flows record at `PHONE` and use `tap()`. Local dev, seeded accounts signed in the way the seed file or project docs say, setup outside the recording, one caption per step, 20 to 60 s, under 10 MB, check with `scripts/sheet.mjs`, undo test data, re-record when a step or layout changes but not for a copy edit.
 
 ## Comments until clean
 Loop: list unresolved threads, sort each, batch fixes into one push, reply to and resolve every thread, wait for the re-review.

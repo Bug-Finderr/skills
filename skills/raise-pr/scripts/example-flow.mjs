@@ -20,6 +20,7 @@ await setup.context().close();
 const page = await recordedPage(browser, OUT, NAME);
 try {
   // Sign in and open the screen the way the project's seed file or docs say.
+  // Clicks and taps mark themselves. For a phone flow pass PHONE to recordedPage and use tap().
   await say(page, "What the viewer is looking at, in plain words.", 3000);
 } finally {
   await finishVideo(page, OUT, NAME);
