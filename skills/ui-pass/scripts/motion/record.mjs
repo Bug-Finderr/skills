@@ -47,11 +47,12 @@ const SIZES = {
 const STILL_SCALE = { 390: 2, 1440: 1 };
 const STRIP = { 390: { frame: 195, cols: 10 }, 1440: { frame: 360, cols: 8 } };
 
+// A popover sits in the top layer, so the flash also covers an open native <dialog>.
 const FLASH_ON = () => {
-  const d = document.createElement("div");
-  d.id = "__flash";
-  d.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:#ff00ff";
+  const d = Object.assign(document.createElement("div"), { id: "__flash", popover: "manual" });
+  d.style.cssText = "position:fixed;inset:0;width:auto;height:auto;margin:0;border:0;padding:0;background:#ff00ff";
   document.body.append(d);
+  d.showPopover();
 };
 const FLASH_OFF = () => document.getElementById("__flash")?.remove();
 

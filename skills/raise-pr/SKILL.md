@@ -16,7 +16,7 @@ Project rules and recent merged PRs win where they differ from this.
 - Agent-written tests stay local; their results go in the description.
 
 ## Review
-- Own checks green, then a clean Opus agent and gpt-6.1-sol (codex) in parallel on the full diff and the PR text.
+- Own checks green, then a clean Opus agent and gpt-6.1-sol (codex, as a briefed review per the codex-usage skill) in parallel on the full diff and the PR text.
 - Lenses: what can break in production, code nothing needs, and project and user rules. For UI changes the reviewers also get before and after screenshots at phone and laptop width.
 - Refute each finding against the code before applying; keep anything uncertain on security. Re-review the fix commits.
 - Keep the diff small: repeated lines become one helper, no copies of what git holds, no nice-to-haves.
@@ -25,12 +25,12 @@ Project rules and recent merged PRs win where they differ from this.
 For a reader new to the codebase. Title says the effect; open with what breaks without it. Then only what applies: change, how it was tested (before and after table, data source), prod safety, to make it live (steps and who; merging often changes nothing), known limits, visuals. Only facts checked this session, else "configured but untested". No em dashes, filler, Co-Authored-By or "Generated with". Update the body whenever a fix changes a fact. Self-assign.
 
 ## Visuals (user-facing changes only)
-- A changed look gets before and after stills: base against branch, same data, phone and laptop width, labelled and cropped to the change.
+- A changed look gets before and after stills: base against branch, same data, phone and laptop width, labelled and cropped to the change. Take each with `page.screenshot` right after a named step of one flow script run on base and on branch, join each pair with `magick +append`, and never pick frames from videos by time.
 - A still that shows where to tap or click marks the spot with `mark(page, locator)` from `scripts/vlib.mjs` and says so in its label; dispose the mark after the shot, since it outlives navigation.
 - A new or changed flow (steps, timing, motion) also gets a video; a look alone doesn't need one.
-- Attach either: put `![](./file)` where it belongs in the body file; `gh pr edit <n> --body-file body.md --attach file` uploads it and swaps in the link, and `--attach` repeats for several files.
+- Attach either: put `![](./file)` where it belongs in the body file; `gh pr edit <n> --body-file body.md --attach file` uploads it and swaps in the link, and `--attach` repeats for several files. Later edits start from the live body (`gh pr view <n> --json body -q .body > body.md`), which holds the uploaded links, and attach only new files.
 
-Videos: `scripts/vlib.mjs` with Node, not Bun; start from `scripts/example-flow.mjs`. Each pointer action shows a magenta dot and each click or tap a ripple on their own (pass another CSS colour to `recordedPage` and `mark` when the app uses magenta or the mark gets lost), and every input action, key presses included, adds 0.8 s; phone flows record at `PHONE` and use `tap()`. Local dev, seeded accounts signed in the way the seed file or project docs say, setup outside the recording, one caption per step, 20 to 60 s, under 10 MB, check with `scripts/sheet.mjs`, undo test data, re-record when a step or layout changes but not for a copy edit.
+Videos: `scripts/vlib.mjs` with Node, not Bun; start from `scripts/example-flow.mjs`. Each pointer action shows a magenta dot and each click or tap a ripple on their own, and every input action, key presses included, adds 0.8 s; phone flows record at `PHONE` and use `tap()`. Local dev, seeded accounts signed in the way the seed file or project docs say, setup outside the recording, one caption per step, 20 to 60 s, under 10 MB, check with `scripts/sheet.mjs`, undo test data, re-record when a step or layout changes but not for a copy edit.
 
 ## Comments until clean
 Loop: list unresolved threads, sort each, batch fixes into one push, reply to and resolve every thread, wait for the re-review.
