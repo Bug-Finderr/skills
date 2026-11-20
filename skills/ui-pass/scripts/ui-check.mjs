@@ -56,7 +56,7 @@ const browserFor = async (touch) =>
   touch ? (touchBrowser ??= await chromium.launch({ channel: "chrome", args: TOUCH_ARGS })) : browser;
 const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
 
-/** A saved sign-in per account, renewed every 30 minutes: an older one can load with stale roles. */
+// Renewed every 30 minutes: an older sign-in can load with stale roles.
 async function authState(account, failShot) {
   const file = join(authDir, `${account}.json`);
   if (existsSync(file) && Date.now() - statSync(file).mtimeMs < 30 * 60_000) return file;
@@ -117,7 +117,7 @@ function measure(touch) {
   }
   const small = [];
   const nearTouch = [];
-  // Visually hidden native inputs (1px, behind a styled control) are not targets.
+  // Visually hidden native inputs (1px) are not targets.
   const targets = [
     ...document.querySelectorAll(
       "a[href], button, input:not([type=hidden]), select, textarea, [role=button], [role=menuitem], [role=tab], [role=checkbox], [role=radio], [role=switch]",
@@ -125,10 +125,9 @@ function measure(touch) {
   ].filter((el) => visible(el) && el.getBoundingClientRect().width > 2);
   const rects = targets.map((el) => el.getBoundingClientRect());
   for (const [i, el] of targets.entries()) {
-    // Inline text links are exempt from target size.
     if (el.tagName === "A" && getComputedStyle(el).display === "inline") continue;
     const r = rects[i];
-    // A control can widen its tap area with an absolutely placed ::after; count it.
+    // An absolutely placed ::after can widen the tap area.
     const after = getComputedStyle(el, "::after");
     const grow = (side) => (after.position === "absolute" ? Math.max(0, -parseFloat(after[side]) || 0) : 0);
     const w = r.width + grow("left") + grow("right");
@@ -154,7 +153,6 @@ function measure(touch) {
   return { pageOverflow: document.documentElement.scrollWidth - vw, overflow, small, nearTouch, tinyInputs };
 }
 
-// Saved after every shot, so a killed run loses nothing.
 const reportFile = join(out, "report.json");
 const earlier = existsSync(reportFile) ? JSON.parse(readFileSync(reportFile, "utf8")) : [];
 const key = (r) => `${r.id}@${r.width}`;
@@ -184,7 +182,6 @@ for (const screen of screens) {
     const failShot = join(out, `${shot}.fail.png`);
     let context;
     let page;
-    // A shot that hangs (a sign-in, a page script, axe, a never-ending scroll) is cut off and recorded as failed.
     let watchdog;
     const hung = new Promise((_, reject) => {
       watchdog = setTimeout(() => reject(new Error("shot took over 2 minutes")), 120_000);
@@ -206,7 +203,7 @@ for (const screen of screens) {
         reducedMotion: has("reduce") ? "reduce" : "no-preference",
         storageState: screen.account ? await authState(screen.account, failShot) : undefined,
       });
-      // The watchdog may have fired during sign-in; a shot it gave up on must not keep running.
+      // The watchdog may have fired during sign-in; stop a shot it gave up on.
       if (entry.failed) return context.close();
       await config.prepare?.(context, screen);
       page = await context.newPage();
@@ -237,7 +234,7 @@ for (const screen of screens) {
       if (shots) {
         const png = join(out, `${shot}.png`);
         await page.screenshot({ path: png, fullPage: !screen.viewportOnly, animations: "allow" });
-        // WebP stops at 16383px a side; very long pages are scaled to fit.
+        // WebP stops at 16383px a side.
         execFileSync("magick", [png, "-resize", "16000x16000>", "-quality", "72", png.replace(/\.png$/, ".webp")], {
           timeout: 60_000,
         });
@@ -249,8 +246,6 @@ for (const screen of screens) {
     report.push(entry);
     save();
     console.log(`${entry.pass ? "PASS" : "FAIL"} ${shot}${entry.failed ? ` ${entry.failed}` : ""}`);
-    // Keep the refreshed sign-in for the next page of this account; a shot that signed out or loaded signed out
-    // drops it, so the next page signs in afresh.
     if (screen.account) {
       const saved = join(authDir, `${screen.account}.json`);
       if (entry.failed || screen.steps?.includes("Sign out")) rmSync(saved, { force: true });
@@ -261,7 +256,7 @@ for (const screen of screens) {
 }
 await browser.close();
 await touchBrowser?.close();
-// Also the only write when nothing ran, so the report named below exists.
+// Writes the report even when nothing ran, so the path printed below exists.
 const results = save().filter((r) => selected.has(key(r)));
 const failed = results.filter((r) => !r.pass).length;
 console.log(`${results.length - failed}/${results.length} passed. Report: ${reportFile}`);

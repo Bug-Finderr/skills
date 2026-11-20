@@ -18,31 +18,31 @@ export default {
   screens: "tools/ui-screens.json",
   async signIn(page, account) {},      // signs a fresh page in; the scripts save and renew the session
   async signedIn(page, account) {},    // optional: false fails the shot as "loaded signed out"
-  async prepare(context, screen) {},   // optional: init scripts such as hiding a dev badge
+  async prepare(context, screen) {},   // optional: init scripts
 };
 ```
 - Screen entry: `id` (area first), `route`, `account` (omit when signed out), `widths` (`both`, `phone-only`, `laptop-only`) or `viewport {width, height}`, `steps` (body of `async (page, width) => {}`), `motion` (scroll through before the shot), `viewportOnly`, `permissions`, `env` (runs only with `--env <name>`), `mutates` (runs last), `skip` plus `needs` (the reason).
-- A `mutates` screen changes what its next width and later runs see, so its steps or a reset script put the data back.
+- A `mutates` screen puts its data back in its steps or a reset script, or its next width and later runs see the change.
 - Steps that sign out must contain the text `Sign out`, or ui-check reuses a dead session.
 - A loading state is shot by blocking the backend's websocket in `steps`, then reloading.
 
 ## Scripts
 - `scripts/ui-check.mjs [id-prefix...] [--out after] [--widths 390,1440] [--all-widths] [--reduce] [--scale 2] [--base url] [--no-shots] [--env name] [--resume] [--exact] [--keep-png]`: shots and gates per screen; `<shots>/<out>/report.json` is saved after every shot, and a failed shot leaves `<id>@<w>.fail.png`. `--resume` skips every shot that loaded, gate failures included, so retake a fixed screen by its id.
-- `scripts/diff.sh <before-set-dir> <after-set-dir>`: each before shot is same, a changed-pixel count (2% fuzz), a size change or missing from the after set; writes a TSV in the after set.
-- `scripts/pairs.mjs <before> <after> [id-prefix...]`: one before-over-after picture per screen for the tracker and the user, never for critics. Pictures go to `<shots>/pairs/`, or `<shots>/$PAIRS/` when that is set. It rebuilds only pictures older than their shots.
+- `scripts/diff.sh <before-set-dir> <after-set-dir>`: changed pixels per shot, as a TSV in the after set.
+- `scripts/pairs.mjs <before> <after> [id-prefix...]`: one before-over-after picture per screen for the tracker and the user, never critics, in `<shots>/pairs/` or `<shots>/$PAIRS/`. It rebuilds only pictures older than their shots.
 - `scripts/judge/judge.mjs <before> <after> [id-prefix...] --out <dir> [--judges muse,codex] [--prompt file] [--noise 1500]`: two images or two shot sets.
-  - Sets are cut into viewport pieces and only the 6 phone and 4 wider pieces that changed most are judged; the rest are listed as `dropped` in `tiles.json`. Content pushed down shifts every piece below it, so crop such screens to the changed element.
+  - Sets are cut into viewport pieces and only the 6 phone and 4 wider pieces that changed most are judged; `tiles.json` lists the rest as `dropped`. Content pushed down shifts every piece below it, so crop such screens to the changed element.
   - A judge that never calls the control the same, or skips a pair or answers it with anything but one X, Y or same, makes the run unaccepted: rerun it once, then drop it for that round and say so.
   - `--judges muse` first, then `codex` only on what Muse accepted; Muse costs about $0.12 to $0.14 per judged piece with its control.
-- `scripts/picks/make.mjs <picks.json> [outDir]`: builds `index.html`, `img/`, `clips/` and `files.json`. Build inside the project or the session scratchpad.
-- `scripts/motion/record.mjs <set> [moment-prefix...] [--moments ui-pass.moments.mjs] [--dir shots] [--widths 390,1440] [--data] [--skip-done] [--list] [--jobs 3]`: each moment gives a clip, a strip every 100 ms and a reduced-motion end still. Widths 390 and 1440 only. Takes run `--jobs` at a time, each in its own browser; `--jobs 1` when frame timing must be exact on a busy machine. `--skip-done` reruns only the takes `report.json` marks failed.
-- `scripts/motion/compare.mjs [a=before] [b=after]`: stacks a's strip over b's per moment in `<shots>/<a>-vs-<b>/`.
+- `scripts/picks/make.mjs <picks.json> [outDir]`: builds the page and its `files.json` map; build inside the project or the session scratchpad.
+- `scripts/motion/record.mjs <set> [moment-prefix...] [--moments ui-pass.moments.mjs] [--dir shots] [--widths 390,1440] [--data] [--skip-done] [--list] [--jobs 3]`: each moment gives a clip, a strip every 100 ms and a reduced-motion end still. Widths 390 and 1440 only. `--jobs 1` when frame timing must be exact on a busy machine. `--skip-done` reruns only the takes `report.json` marks failed.
+- `scripts/motion/compare.mjs [a=before] [b=after]`: stacks a's strip over b's per moment.
 - Moments file: default export, an array of `{ id, widths: [390, 1440], account?, route, data?, run(page, h) }`; `run` opens `h.base + route` itself, calls `h.start()` where the clip begins, then triggers and waits with fixed waits. `data: true` moments save or pay, so they run only with `--data`.
 
 ## Picks pages
 - `picks.json`: `title`, optional `intro`, `questions` (`id` of letters, digits and `_-.:@+~`, `group`, `title`, `text`, `media`, `full`, `opts` of `{label, line, media}`, `facts`, `rec`) and `checks` (`id`, `title`, `text`, `lead`, `pairs` of before and after media, `rec`). Media is `{src, cap, phone?}`; `.webm` and `.mp4` are clips.
 - Before sharing, write, read back and delete a probe record. Rename an answered question's options only after saving its answer.
-- Answers are one record per question id, `{choice, note}`, in collection `picks`; read them with the ArtifactData tool and keep a copy on disk.
+- Answers are one record per question id, `{choice, note}`, in collection `picks`; keep a copy on disk.
 - Comment threads on the page are a second channel: reply, act, then resolve.
 - A checks-only page is the tracker: every screen before and after.
 
@@ -62,23 +62,23 @@ export default {
 - A project's own look is the spec; matching it is not a tell.
 
 ## Mobile ladder
-- Before each review: `--all-widths`, with and without `--reduce`; emulation fakes size and touch only.
+- Before each review: `--all-widths`, with and without `--reduce`.
 - Speed: Lighthouse mobile at 6x CPU on the home page and one signed-in screen, before and after.
 - End of the pass: the real phone for keyboard, collapsing browser bars, Back on every overlay, scroll feel and a trace.
 - After release: real-visitor web vitals before and after.
 
 ## Traps
-- Full-page shots in Chrome drop touch emulation; `ui-check` shoots touch widths from a second Chrome launched with coarse-pointer blink settings.
+- Full-page shots in Chrome drop touch emulation; `ui-check` shoots touch widths from a second, coarse-pointer Chrome.
 - A page load can rotate the refresh token, so sign-ins shared between runs log each other out.
 - Chrome refuses full-range VP9 clips; `make.mjs` re-encodes them to TV range.
 - On Windows, stopping a background task leaves its node children running.
 - A bundler may refuse a worktree's linked node_modules (Turbopack does); install for real there, and unlink links before deleting a worktree.
 - Each dev server grows to about 3 GB and a typecheck takes about 2.6 GB: run only as many as free memory allows, and queue typechecks.
-- A sleeping or locked laptop kills every process; set sleep to never for an unattended run.
+- A sleeping or locked laptop kills every process.
 - A dev server can serve stale CSS after many edits: check a computed style before trusting a shot.
 - Exit keyframes need fill-mode forwards, or a closing popup flashes back before it unmounts.
 - Android pans the page under the keyboard unless the viewport meta sets `interactive-widget=resizes-content`; headless runs can't press Back.
-- Artifact limits: 255 files per publish and about 511 per version, so the tracker uses one picture per screen.
+- The tracker uses one picture per screen to stay under an artifact's file limits.
 - Base UI focus guards raise axe `aria-hidden-focus`; treat it as a known false positive.
 - Mail designs are judged as Gmail shows them: no web fonts, images blocked, and the Gmail app's dark mode leaves a mail's colours alone, so forced-dark browser shots show problems readers don't have.
 

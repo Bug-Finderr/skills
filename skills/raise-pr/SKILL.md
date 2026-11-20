@@ -8,7 +8,8 @@ description: Use when opening, updating a pull request, reviewing a branch befor
 Project rules and recent merged PRs win where they differ from this.
 
 ## Prove
-- Start from latest main and merge it again before every push, until `gh pr view --json mergeable` says MERGEABLE; check new migration numbers and file names against main and open PRs.
+- Start from latest main and merge it again before every push, until `gh pr view --json mergeable` says MERGEABLE.
+- Check new migration numbers and file names against main and open PRs.
 - Test everything this change can make worse, old against new, at realistic scale.
 - Judge against real data with independent references, never samples you made, and plant a change to prove each comparison can fail.
 - Show a bug or hole on the base before showing it fixed, with every legitimate use still served.
@@ -16,19 +17,22 @@ Project rules and recent merged PRs win where they differ from this.
 - Agent-written tests stay local; their results go in the description.
 
 ## Review
-- Own checks green, then a clean Opus agent and gpt-6.1-sol (codex, as a briefed review per the codex-usage skill) in parallel on the full diff and the PR text.
-- Lenses: what can break in production, code nothing needs, and project and user rules. For UI changes the reviewers also get before and after screenshots at phone and laptop width.
-- Refute each finding against the code before applying; keep anything uncertain on security. Re-review the fix commits.
+- Own checks green, then a clean Opus agent and gpt-6.1-sol (codex) in parallel on the full diff and the PR text.
+- Lenses: what can break in production, code nothing needs, and project and user rules.
+- For UI changes the reviewers also get the before and after stills.
+- Refute each finding against the code before applying; keep anything uncertain on security.
+- Re-review the fix commits.
 - Keep the diff small: repeated lines become one helper, no copies of what git holds, no nice-to-haves.
 
 ## Describe
 For a reader new to the codebase. Title says the effect; open with what breaks without it. Then only what applies: change, how it was tested (before and after table, data source), prod safety, to make it live (steps and who; merging often changes nothing), known limits, visuals. Only facts checked this session, else "configured but untested". No em dashes, filler, Co-Authored-By or "Generated with". Update the body whenever a fix changes a fact. Self-assign.
 
 ## Visuals (user-facing changes only)
-- A changed look gets before and after stills: base against branch, same data, phone and laptop width, labelled and cropped to the change. Take each with `page.screenshot` right after a named step of one flow script run on base and on branch, join each pair with `magick +append`, and never pick frames from videos by time.
-- A still that shows where to tap or click marks the spot with `mark(page, locator)` from `scripts/vlib.mjs` and says so in its label; dispose the mark after the shot, since it outlives navigation.
-- A new or changed flow (steps, timing, motion) also gets a video; a look alone doesn't need one.
-- Attach either: put `![](./file)` where it belongs in the body file; `gh pr edit <n> --body-file body.md --attach file` uploads it and swaps in the link, and `--attach` repeats for several files. Later edits start from the live body (`gh pr view <n> --json body -q .body > body.md`), which holds the uploaded links, and attach only new files.
+- A changed look gets before and after stills: base against branch, same data, phone and laptop width, labelled and cropped to the change. Take each with `page.screenshot` right after a named step of one flow script run on both, join each pair with `magick +append`, and never pick frames from videos by time.
+- A still that shows where to tap or click marks the spot with `mark(page, locator)` from `scripts/vlib.mjs` and says so in its label; dispose the mark after the shot.
+- Add a video only for a new or changed flow (steps, timing, motion).
+- To attach, put `![](./file)` in the body file; `gh pr edit <n> --body-file body.md --attach file` uploads it and swaps in the link. Repeat `--attach` per file.
+- Later edits start from the live body (`gh pr view <n> --json body -q .body > body.md`) and attach only new files.
 
 Videos: `scripts/vlib.mjs` with Node, not Bun; start from `scripts/example-flow.mjs`. Each pointer action shows a magenta dot and each click or tap a ripple on their own (pass another CSS colour to `recordedPage` and `mark` when the app uses magenta), and every input action, key presses included, adds 0.8 s; phone flows record at `PHONE` and use `tap()`. Local dev, seeded accounts signed in the way the seed file or project docs say, setup outside the recording, one caption per step, 20 to 60 s, under 10 MB, check with `scripts/sheet.mjs`, undo test data, re-record when a step or layout changes but not for a copy edit.
 

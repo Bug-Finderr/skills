@@ -23,7 +23,6 @@ const { height, duration } = await page.evaluate(
     const duration = v.currentTime || v.duration;
     const times = [];
     for (let t = 0; t < duration; t += step) times.push(t);
-    // Phone recordings are portrait, so they get more, narrower columns.
     const cols = v.videoHeight > v.videoWidth ? 8 : 4;
     const w = 1680 / cols;
     const h = (w * v.videoHeight) / v.videoWidth;

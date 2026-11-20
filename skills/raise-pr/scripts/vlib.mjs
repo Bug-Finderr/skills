@@ -1,11 +1,11 @@
-// Shared helpers for captioned PR flow videos on local dev. Run flow scripts with Node, not Bun.
+// Helpers for captioned PR flow videos. Run flow scripts with Node, not Bun.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const CACHE = path.join(os.homedir(), ".bun/install/cache");
-// Newest cached playwright-core; bun keeps several versions side by side.
+// bun keeps several playwright-core versions; take the newest.
 const core = fs
   .readdirSync(CACHE)
   .filter((dir) => dir.startsWith("playwright-core@"))
@@ -15,29 +15,25 @@ const { chromium } = await import(pathToFileURL(path.join(CACHE, core, "index.mj
 
 export const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 export const DESKTOP = { width: 1280, height: 800 };
-// Phone pages get touch input: drive them with locator.tap(), not click().
 export const PHONE = { width: 390, height: 844 };
 const isPhone = (viewport) => viewport.width < 768;
 const device = (viewport) => ({ viewport, hasTouch: isPhone(viewport), isMobile: isPhone(viewport) });
 
-// Tap marks default to magenta, a colour apps rarely use for their own states, so no one reads them as app UI.
-// Pass any CSS colour instead when the app uses magenta or it gets lost on the screen; the white edge keeps the
-// mark visible on dark pages.
 const TAP_COLOR = "#ec008c";
+// The white edge keeps the mark visible on dark pages.
 const dot = (size, color) =>
   `width:${size}px;height:${size}px;border-radius:50%;border:3px solid ${color};box-shadow:0 0 0 1.5px #fff;` +
   `background:color-mix(in srgb, ${color} 35%, transparent);box-sizing:border-box`;
 
-// Captions from say() explain the steps, so Playwright's own action titles stay hidden.
+// say() captions replace Playwright's action titles.
 const showActions = (touch, color) => ({
   duration: 800,
   cursor: touch ? "none" : "pointer",
   style: { point: dot(touch ? 40 : 28, color), title: "display:none" },
 });
 
-// Runs inside the page. The ripple and Playwright's marker layer are popovers, so an app's own ::backdrop
-// rules would dim the whole screen behind them; the marker layer stays open from the first mark until the
-// page closes. Re-added on each press in case the app replaces the page's adopted stylesheets.
+// Runs inside the page. The ripple and Playwright's marker layer are popovers, so an app's ::backdrop rules
+// would dim the screen behind them. Re-added on each press in case the app replaces adopted stylesheets.
 function hideMarkerBackdrops() {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync("[data-tap-ripple]::backdrop,x-pw-glass::backdrop{display:none!important}");
@@ -48,7 +44,6 @@ function hideMarkerBackdrops() {
   addEventListener("pointerdown", keep, true);
 }
 
-// Playwright shows the dot before each action; this ripples out from the spot when the press lands.
 // Runs inside the page, so it gets the dot's style as an argument.
 function ripple(look) {
   addEventListener(
@@ -95,14 +90,14 @@ export async function recordedPage(browser, outDir, name, viewport = DESKTOP, co
   return page;
 }
 
-/** A page without video, for setup and cleanup steps that should not be in the recording. */
+/** A page without video, for setup and cleanup. */
 export async function plainPage(browser, viewport = DESKTOP) {
   const page = await (await browser.newContext(device(viewport))).newPage();
   page.setDefaultTimeout(25000);
   return page;
 }
 
-/** Shows a caption bar at the bottom of the page so the video explains itself. */
+/** Shows a caption bar at the bottom of the page. */
 export async function say(page, text, ms = 2200) {
   await page
     .evaluate((t) => {
@@ -122,7 +117,7 @@ export async function say(page, text, ms = 2200) {
   await page.waitForTimeout(ms);
 }
 
-/** Puts the video's tap dot where a still's tap or click lands. Dispose the result to remove it. */
+/** Puts the video's tap dot on a locator for a still. Dispose the result to remove it. */
 export async function mark(page, locator, color = TAP_COLOR) {
   const b = await locator.boundingBox();
   const r = isPhone(page.viewportSize()) ? 20 : 14;

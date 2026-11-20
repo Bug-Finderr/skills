@@ -1,4 +1,4 @@
-// Stacks each moment's strip from set a over the same strip from set b: one image per moment in <shots>/<a>-vs-<b>/.
+// Stacks set a's strip over set b's for each moment, into <shots>/<a>-vs-<b>/.
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync } from "node:fs";
 import { join, resolve } from "node:path";

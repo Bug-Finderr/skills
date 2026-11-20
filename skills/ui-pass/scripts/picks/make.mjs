@@ -37,7 +37,7 @@ function clip(from) {
   return path;
 }
 
-// A source used twice is published once, since a version holds at most 511 files.
+// Each source is published once: a version holds at most 511 files.
 function convert(m) {
   const from = resolve(dirname(spec), m.src);
   const phone = m.phone ?? /phone|390/i.test(`${m.cap} ${m.src}`);
