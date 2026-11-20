@@ -5,7 +5,7 @@ description: Use when sending work to the codex CLI - second opinions, code revi
 
 # Codex CLI usage
 
-Give codex the material, not your conclusion. It generates images, and reads PDFs and office files when a document plugin is installed (`codex plugin list`). A run takes 15 seconds to several minutes, so batch questions into one run.
+Use codex wherever a different model family or a separate context helps, giving it the material, not your conclusion. It generates images, and reads PDFs and office files when a document plugin is installed (`codex plugin list`). A run takes 15 seconds to several minutes, so batch questions into one run.
 
 ## How
 
