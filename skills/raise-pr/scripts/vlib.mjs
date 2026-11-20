@@ -1,11 +1,11 @@
-// Shared helpers for captioned PR flow videos on local dev. Run flow scripts with Node, not Bun.
+// Helpers for captioned PR flow videos. Run flow scripts with Node, not Bun.
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
 const CACHE = path.join(os.homedir(), ".bun/install/cache");
-// Newest cached playwright-core; bun keeps several versions side by side.
+// bun keeps several playwright-core versions; take the newest.
 const core = fs
   .readdirSync(CACHE)
   .filter((dir) => dir.startsWith("playwright-core@"))
@@ -15,6 +15,57 @@ const { chromium } = await import(pathToFileURL(path.join(CACHE, core, "index.mj
 
 export const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 export const DESKTOP = { width: 1280, height: 800 };
+export const PHONE = { width: 390, height: 844 };
+const isPhone = (viewport) => viewport.width < 768;
+const device = (viewport) => ({ viewport, hasTouch: isPhone(viewport), isMobile: isPhone(viewport) });
+
+const TAP_COLOR = "#ec008c";
+// The white edge keeps the mark visible on dark pages.
+const dot = (size, color) =>
+  `width:${size}px;height:${size}px;border-radius:50%;border:3px solid ${color};box-shadow:0 0 0 1.5px #fff;` +
+  `background:color-mix(in srgb, ${color} 35%, transparent);box-sizing:border-box`;
+
+// say() captions replace Playwright's action titles.
+const showActions = (touch, color) => ({
+  duration: 800,
+  cursor: touch ? "none" : "pointer",
+  style: { point: dot(touch ? 40 : 28, color), title: "display:none" },
+});
+
+// Runs inside the page. The ripple and Playwright's marker layer are popovers, so an app's ::backdrop rules
+// would dim the screen behind them. Re-added on each press in case the app replaces adopted stylesheets.
+function hideMarkerBackdrops() {
+  const sheet = new CSSStyleSheet();
+  sheet.replaceSync("[data-tap-ripple]::backdrop,x-pw-glass::backdrop{display:none!important}");
+  const keep = () =>
+    document.adoptedStyleSheets.includes(sheet) ||
+    (document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]);
+  keep();
+  addEventListener("pointerdown", keep, true);
+}
+
+// Runs inside the page, so it gets the dot's style as an argument.
+function ripple(look) {
+  addEventListener(
+    "pointerdown",
+    (e) => {
+      // A popover sits in the top layer, so the ripple also shows above an open <dialog>.
+      const el = Object.assign(document.createElement("div"), { popover: "manual" });
+      el.dataset.tapRipple = "";
+      el.style.cssText =
+        `position:fixed;inset:auto;margin:0;padding:0;overflow:visible;left:${e.clientX - 30}px;top:${e.clientY - 30}px;` +
+        `${look};pointer-events:none`;
+      document.documentElement.append(el);
+      el.showPopover();
+      const grow = el.animate(
+        { transform: ["scale(.3)", "scale(1.4)"], opacity: [1, 0] },
+        { duration: 600, easing: "ease-out" },
+      );
+      grow.onfinish = grow.oncancel = () => el.remove();
+    },
+    true,
+  );
+}
 
 export const consoleErrors = [];
 
@@ -23,10 +74,15 @@ export function launch() {
 }
 
 /** A page whose context records a video into `<outDir>/<name>/` until `finishVideo`. */
-export async function recordedPage(browser, outDir, name, viewport = DESKTOP) {
+export async function recordedPage(browser, outDir, name, viewport = DESKTOP, color = TAP_COLOR) {
   const dir = path.join(outDir, name);
   fs.rmSync(dir, { recursive: true, force: true });
-  const context = await browser.newContext({ viewport, recordVideo: { dir, size: viewport } });
+  const context = await browser.newContext({
+    ...device(viewport),
+    recordVideo: { dir, size: viewport, showActions: showActions(isPhone(viewport), color) },
+  });
+  await context.addInitScript(hideMarkerBackdrops);
+  await context.addInitScript(ripple, dot(60, color));
   const page = await context.newPage();
   page.setDefaultTimeout(25000);
   page.on("pageerror", (e) => consoleErrors.push(`[${name}] ${String(e).slice(0, 300)}`));
@@ -34,14 +90,14 @@ export async function recordedPage(browser, outDir, name, viewport = DESKTOP) {
   return page;
 }
 
-/** A page without video, for setup and cleanup steps that should not be in the recording. */
+/** A page without video, for setup and cleanup. */
 export async function plainPage(browser, viewport = DESKTOP) {
-  const page = await (await browser.newContext({ viewport })).newPage();
+  const page = await (await browser.newContext(device(viewport))).newPage();
   page.setDefaultTimeout(25000);
   return page;
 }
 
-/** Shows a caption bar at the bottom of the page so the video explains itself. */
+/** Shows a caption bar at the bottom of the page. */
 export async function say(page, text, ms = 2200) {
   await page
     .evaluate((t) => {
@@ -59,6 +115,16 @@ export async function say(page, text, ms = 2200) {
     }, text)
     .catch(() => {});
   await page.waitForTimeout(ms);
+}
+
+/** Puts the video's tap dot on a locator for a still. Dispose the result to remove it. */
+export async function mark(page, locator, color = TAP_COLOR) {
+  const b = await locator.boundingBox();
+  const r = isPhone(page.viewportSize()) ? 20 : 14;
+  await page.evaluate(hideMarkerBackdrops);
+  return page.screencast.showOverlay(
+    `<div style="position:absolute;left:${b.x + b.width / 2 - r}px;top:${b.y + b.height / 2 - r}px;${dot(2 * r, color)}"></div>`,
+  );
 }
 
 export async function settle(page, extra = 900) {

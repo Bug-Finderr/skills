@@ -23,9 +23,9 @@ const { height, duration } = await page.evaluate(
     const duration = v.currentTime || v.duration;
     const times = [];
     for (let t = 0; t < duration; t += step) times.push(t);
-    const cols = 4;
+    const cols = v.videoHeight > v.videoWidth ? 8 : 4;
     const w = 1680 / cols;
-    const h = w * 0.625;
+    const h = (w * v.videoHeight) / v.videoWidth;
     const c = document.createElement("canvas");
     c.width = cols * w;
     c.height = Math.ceil(times.length / cols) * h;

@@ -14,7 +14,7 @@ const flag = (name, fallback) => {
 const [before, after, ...prefixes] = args.filter((arg, i) => !arg.startsWith("--") && !args[i - 1]?.startsWith("--"));
 const judges = flag("judges", "muse").split(",");
 const prompt = readFileSync(flag("prompt", new URL("prompt.txt", import.meta.url)), "utf8");
-const NOISE = Number(flag("noise", 1500)); // changed pixels a piece may differ by from animation alone
+const NOISE = Number(flag("noise", 1500)); // pixels a piece may change from animation alone
 
 const out = resolve(flag("out"));
 if (existsSync(out)) throw new Error(`${out} exists; pass a new --out`);
@@ -97,7 +97,7 @@ rmSync(join(out, "tiles"), { recursive: true });
 const run = (cmd, argv, stdio = "ignore") =>
   new Promise((done, fail) => spawn(cmd, argv, { stdio }).on("error", fail).on("close", done));
 
-// Muse Wonder at xhigh through OpenRouter. curl, not fetch: Node's fetch gives up on headers after five minutes.
+// curl, not fetch: Node's fetch gives up on headers after five minutes.
 async function muse(files, answer) {
   const payload = `${answer}.payload.json`;
   const images = files.flatMap(({ label, file }) => [
@@ -114,8 +114,8 @@ async function muse(files, answer) {
   return { text: response.choices?.[0]?.message?.content ?? JSON.stringify(response.error ?? response), cost: response.usage?.cost ?? 0 };
 }
 
-// codex needs stdin closed, the prompt before -i (which takes several values), and writes -o only at the end. It runs in a
-// temp folder outside any repo on copies of the images, so project files and the shots' location never reach it.
+// codex needs stdin closed, the prompt before -i (which takes several values), and writes -o only at the end.
+// It sees only image copies in a temp folder outside any repo, never project files or where the shots live.
 async function codex(files, answer) {
   const blank = mkdtempSync(join(tmpdir(), "judge-"));
   const copies = files.map((f, i) => {
@@ -133,7 +133,7 @@ async function codex(files, answer) {
   return { text: existsSync(answer) ? readFileSync(answer, "utf8") : "", tokens: Number(tokens ?? 0) };
 }
 
-// One request per judge and order: failures are rare, so a failed run is rerun with a new --out.
+// One request per judge and order, no retries: rerun a failed run with a new --out.
 const ask = { muse, codex };
 const spent = Object.fromEntries(judges.map((j) => [j, { cost: 0, tokens: 0 }]));
 await Promise.all(
@@ -184,7 +184,6 @@ for (const judge of judges) {
   for (const [tile, { control, votes }] of Object.entries(picks)) {
     const both = votes.length === 2 && votes[0] === votes[1] && votes[0] !== "same" ? votes[0] : "split";
     if (control) {
-      // Both sides are the same image, so a judge that never calls it "same" is guessing.
       tally.control_ok = votes.includes("same");
       result.control[judge] = { tile, votes };
       continue;

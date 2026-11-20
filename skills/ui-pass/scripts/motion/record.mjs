@@ -24,9 +24,8 @@ const positional = args.filter((a, i) => !a.startsWith("--") && !valued.has(args
 const [set, ...prefixes] = positional;
 const withData = args.includes("--data");
 const widthsWanted = flag("widths", "390,1440").split(",").map(Number);
-// Takes run at once, each in its own browser; one job keeps frame timing exact on a busy machine.
+// One job keeps frame timing exact on a busy machine.
 const JOBS = Number(flag("jobs", "3"));
-// One folder per run, so runs at once keep their own raw videos and frames.
 const SCRATCH = join(tmpdir(), "ui-pass-motion", `${set}-${process.pid}`);
 
 const picked = MOMENTS.filter((m) => prefixes.length === 0 || prefixes.some((p) => m.id.startsWith(p)));
@@ -47,15 +46,15 @@ const SIZES = {
 const STILL_SCALE = { 390: 2, 1440: 1 };
 const STRIP = { 390: { frame: 195, cols: 10 }, 1440: { frame: 360, cols: 8 } };
 
+// A popover sits in the top layer, so the flash also covers an open native <dialog>.
 const FLASH_ON = () => {
-  const d = document.createElement("div");
-  d.id = "__flash";
-  d.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:#ff00ff";
+  const d = Object.assign(document.createElement("div"), { id: "__flash", popover: "manual" });
+  d.style.cssText = "position:fixed;inset:0;width:auto;height:auto;margin:0;border:0;padding:0;background:#ff00ff";
   document.body.append(d);
+  d.showPopover();
 };
 const FLASH_OFF = () => document.getElementById("__flash")?.remove();
 
-/** Runs one moment at one width. "video" keeps a video; "reduced" ends with a reduced-motion still. */
 async function take(browser, m, width, mode, scratch) {
   const recording = mode === "video";
   const ctx = await browser.newContext({
@@ -89,7 +88,7 @@ async function take(browser, m, width, mode, scratch) {
     await wait(300);
     if (!recording) {
       const cdp = await ctx.newCDPSession(page);
-      // No clip: a clip is in document coordinates, so a scrolled page would shoot its top. This is the viewport.
+      // No clip: a clip is in document coordinates, so a scrolled page would shoot its top.
       const { data } = await cdp.send("Page.captureScreenshot", { format: "png" });
       writeFileSync(join(out, `${m.id}@${width}.reduced.png`), Buffer.from(data, "base64"));
     }
@@ -99,7 +98,7 @@ async function take(browser, m, width, mode, scratch) {
   return { video, problems };
 }
 
-/** Finds the end of the magenta flash in the raw video: the first non-magenta frame after the last magenta one. */
+// End of the magenta flash: the first frame after the last magenta one.
 function flashEnd(raw) {
   const buf = execFileSync("ffmpeg", ["-v", "error", "-i", raw, "-vf", "fps=25,scale=2:2:flags=area,format=rgb24", "-f", "rawvideo", "-"], { maxBuffer: 1 << 28 });
   const frames = buf.length / 12;
@@ -127,7 +126,7 @@ function strip(video, width, dest, scratch) {
   const { frame, cols } = STRIP[width];
   execFileSync("ffmpeg", ["-v", "error", "-i", video, "-vf", `fps=10,scale=${frame}:-1`, join(dir, "f%03d.png")]);
   const files = readdirSync(dir).sort();
-  // Frames are named by their time and passed as a list file: one argument per frame passes Windows' command-line limit.
+  // A list file: one argument per frame passes Windows' command-line limit.
   const named = files.map((f, i) => {
     const to = join(dir, `${i * 100} ms.png`);
     renameSync(join(dir, f), to);
@@ -145,13 +144,12 @@ const skipDone = args.includes("--skip-done");
 const done = (m, width) => skipDone && report.some((r) => r.ok && r.id === m.id && r.width === width);
 const ran = [];
 const launch = (width) => chromium.launch({ channel: "chrome", args: width === 390 ? TOUCH_ARGS : [] });
-// A hung take (it happened once with no error) must not stall the set.
+// A take once hung with no error.
 const within = (promise, ms) => {
   let timer;
   const hung = new Promise((_, reject) => (timer = setTimeout(() => reject(new Error(`take hung for ${ms / 1000} s`)), ms)));
   return Promise.race([promise, hung]).finally(() => clearTimeout(timer));
 };
-/** Records one moment at one width into the set, keeping its own raw video and frames apart from other takes. */
 async function record(browser, m, width) {
   const row = { id: m.id, width, data: !!m.data };
   const scratch = join(SCRATCH, `${m.id}-${width}`);
@@ -190,7 +188,6 @@ async function record(browser, m, width) {
 const queue = widthsWanted.flatMap((width) =>
   picked.filter((m) => m.widths.includes(width) && (withData || !m.data) && !done(m, width)).map((m) => ({ m, width })),
 );
-// Each worker keeps one browser per width and replaces it after a hung take.
 await Promise.all(
   Array.from({ length: Math.min(JOBS, queue.length) }, async () => {
     const browsers = new Map();
